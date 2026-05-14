@@ -21,3 +21,8 @@ VectorBody/
 ├── assets/              # 解剖图资源（必须包含 front_muscle.png 等）
 ├── reports/             # 自动化生成的评估报告存档
 └── vector_body_main.py  # 程序入口
+#代码更新
+cd D:\VectorBody
+git add .
+git commit -m "你的提交说明"
+git push
