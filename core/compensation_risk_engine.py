@@ -60,6 +60,12 @@ def _mid(p: np.ndarray, i: int, j: int) -> np.ndarray:
     return (np.asarray(p[i], dtype=float) + np.asarray(p[j], dtype=float)) / 2.0
 
 
+def _line_tilt_from_horizontal(a: np.ndarray, b: np.ndarray) -> float:
+    v = np.asarray(b, dtype=float) - np.asarray(a, dtype=float)
+    raw = float(np.degrees(np.arctan2(float(v[1]), float(v[0]) + 1e-6)))
+    return abs(((raw + 90.0) % 180.0) - 90.0)
+
+
 class CompensationRiskEngine:
     DRIVE_CN = {
         DriveCategory.SHOULDER: zh(r"\u80a9\u5173\u8282"),
@@ -793,11 +799,23 @@ class CompensationRiskEngine:
         if p.shape[0] < 33:
             raise ValueError("landmarks must contain at least 33 points")
 
-        front, back = self._front_back_legs(p)
         idx = {
             "right": {"hip": 24, "knee": 26, "ankle": 28},
             "left": {"hip": 23, "knee": 25, "ankle": 27},
         }
+        knee_angles = {
+            side: _angle_3pt(
+                p[landmarks["hip"]][:2],
+                p[landmarks["knee"]][:2],
+                p[landmarks["ankle"]][:2],
+            )
+            for side, landmarks in idx.items()
+        }
+        if abs(knee_angles["left"] - knee_angles["right"]) >= 8.0:
+            front = min(knee_angles, key=knee_angles.get)
+            back = "left" if front == "right" else "right"
+        else:
+            front, back = self._front_back_legs(p)
 
         fh = p[idx[front]["hip"]][:2]
         fk = p[idx[front]["knee"]][:2]
@@ -819,12 +837,8 @@ class CompensationRiskEngine:
         shoulder_elevation = (
             elev_angle(p[12][:2], p[16][:2]) + elev_angle(p[11][:2], p[15][:2])
         ) / 2.0
-        thoracic_lateral_proxy = float(
-            np.degrees(np.arctan2(p[12][1] - p[11][1], (p[12][0] - p[11][0]) + 1e-6))
-        )
-        pelvis_tilt_proxy = float(
-            np.degrees(np.arctan2(p[24][1] - p[23][1], (p[24][0] - p[23][0]) + 1e-6))
-        )
+        thoracic_lateral_proxy = _line_tilt_from_horizontal(p[11][:2], p[12][:2])
+        pelvis_tilt_proxy = _line_tilt_from_horizontal(p[23][:2], p[24][:2])
         trunk_mid_x = float((mid_sh[0] + mid_hp[0]) / 2.0)
         cervical_lateral_proxy = abs(float(p[0][0]) - trunk_mid_x) * 100.0
 
@@ -907,8 +921,8 @@ class CompensationRiskEngine:
             "lumbar_lateral_proxy": abs(lumbar_lateral_proxy),
             "shoulder_horizontal_proxy": shoulder_horizontal_proxy,
             "front_hip_opening_proxy": front_hip_opening_proxy,
-            "knee_front_flex": _angle_3pt(fh, fk, fa),
-            "knee_back_ext": _angle_3pt(bh, bk, ba),
+            "knee_front_flex": knee_angles[front],
+            "knee_back_ext": knee_angles[back],
             "shoulderstand_head_offset_ratio": shoulderstand_head_offset_ratio,
             "shoulderstand_shoulder_support_proxy": shoulderstand_shoulder_support_proxy,
             "shoulderstand_elbow_width_ratio": elbow_width_ratio,
