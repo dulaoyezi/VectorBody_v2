@@ -24,5 +24,5 @@ VectorBody/
 #代码更新
 cd D:\VectorBody
 git add .
-git commit -m "你的提交说明"
+git commit -m "更新"
 git push
