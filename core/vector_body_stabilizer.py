@@ -49,5 +49,5 @@ class VectorBodyStabilizer:
 
     def smooth(self, landmarks):
         # 将 Mediapipe 的坐标转为 Numpy 数组进行矩阵运算
-        curr = np.array([[lm.x, lm.y] for lm in landmarks.landmark])
+        curr = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
         return self.filter.smooth(curr)

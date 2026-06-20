@@ -74,7 +74,12 @@ class VectorBodyDashboard(QMainWindow):
         self.mode_combo.addItem(zh(r"\u57fa\u7840\u4f53\u6001\u8bc4\u4f30"), "posture")
         self.mode_combo.addItem(zh(r"\u5b66\u4e60\u6218\u58eb\u4e00\u5f0f"), "warrior1")
         self.mode_combo.addItem(zh(r"\u5b66\u4e60\u6218\u58eb\u4e8c\u5f0f"), "warrior2")
-        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u80a9\u5012\u7acb"), "shoulderstand")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u5c71\u5f0f"), "tadasana")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u7b80\u6613\u5750"), "sukhasana")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u7ad9\u7acb\u524d\u5c48\u5f0f"), "uttanasana")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u773c\u955c\u86c7\u5f0f"), "cobra")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u5e73\u8861\u5f0f"), "balance")
+        self.mode_combo.addItem(zh(r"\u5b66\u4e60\u4e0b\u72ac\u5f0f"), "downward")
         self.mode_combo.setStyleSheet(
             "height: 38px; background: #1E293B; color: white; "
             "padding-left: 10px; border-radius: 5px; font-size: 15px;"
@@ -159,11 +164,29 @@ class VectorBodyDashboard(QMainWindow):
         sidebar.addWidget(self.status_badge)
         self.update_detection_state("idle")
 
-        self.val_sh = QLabel(zh(r"\u52a8\u4f5c\u8bc4\u5206: --"))
-        self.val_pl = QLabel(zh(r"\u7075\u6d3b\u5173\u8282\u9501\u5b9a: --"))
-        self.val_sc = QLabel(zh(r"\u975e\u7075\u6d3b\u5173\u8282\u4ee3\u507f: --"))
-        for label in (self.val_sh, self.val_pl, self.val_sc):
-            label.setStyleSheet("font-size: 20px; color: #60A5FA; font-weight: bold; margin: 10px 0;")
+        self.metric_score_label = QLabel(zh(r"\u7efc\u5408\u8bc4\u5206: --"))
+        self.metric_joint_label = QLabel(zh(r"\u5173\u8282\u2014\u59ff\u6001\u7b26\u5408\u5ea6: --"))
+        self.metric_topology_label = QLabel(zh(r"\u62d3\u6251\u7a33\u5b9a\u4e0e\u4ee3\u507f\u63a7\u5236: --"))
+        self.metric_support_label = QLabel(zh(r"\u652f\u6491\u2014\u4ee3\u507f\u89c6\u89c9\u4ee3\u7406: --"))
+        self.metric_risk_label = QLabel(zh(r"\u4ee3\u507f\u98ce\u9669: --"))
+        self.metric_advice_label = QLabel(zh(r"\u7ea0\u6b63\u5efa\u8bae: --"))
+        self.metric_confidence_label = QLabel(zh(r"\u7cfb\u7edf\u53ef\u4fe1\u5ea6: --"))
+        self.metric_labels = (
+            self.metric_score_label,
+            self.metric_joint_label,
+            self.metric_topology_label,
+            self.metric_support_label,
+            self.metric_risk_label,
+            self.metric_advice_label,
+            self.metric_confidence_label,
+        )
+        self.val_sh = self.metric_score_label
+        self.val_pl = self.metric_joint_label
+        self.val_sc = self.metric_topology_label
+        for label in self.metric_labels:
+            label.setWordWrap(True)
+            label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            label.setStyleSheet("font-size: 15px; color: #60A5FA; font-weight: bold; margin: 5px 0;")
             sidebar.addWidget(label)
 
         sidebar.addStretch()
@@ -216,20 +239,52 @@ class VectorBodyDashboard(QMainWindow):
             "font-size: 18px; font-weight: bold; border-radius: 8px; padding: 8px;"
         )
 
-    def update_yoga_metrics(self, score=None, grade=None, detail=None):
+    def _system_confidence_text(self, detail):
+        if detail.get("bone_length_ready"):
+            state = zh(r"\u53ef\u4fe1") if detail.get("bone_length_valid") else zh(r"\u5f02\u5e38")
+            return f"{float(detail.get('bone_length_quality', 0.0)) * 100:.0f}% ({state})"
+        return zh(r"\u91c7\u6837\u4e2d")
+
+    def update_yoga_metrics(self, score=None, grade=None, detail=None, advice=None):
         if score is None or grade is None or not detail:
-            self.val_sh.setText(zh(r"\u52a8\u4f5c\u8bc4\u5206: --"))
-            self.val_pl.setText(zh(r"\u7075\u6d3b\u5173\u8282\u9501\u5b9a: --"))
-            self.val_sc.setText(zh(r"\u975e\u7075\u6d3b\u5173\u8282\u4ee3\u507f: --"))
+            self.metric_score_label.setText(zh(r"\u7efc\u5408\u8bc4\u5206: --"))
+            self.metric_joint_label.setText(zh(r"\u5173\u8282\u2014\u59ff\u6001\u7b26\u5408\u5ea6: --"))
+            self.metric_topology_label.setText(zh(r"\u62d3\u6251\u7a33\u5b9a\u4e0e\u4ee3\u507f\u63a7\u5236: --"))
+            self.metric_support_label.setText(zh(r"\u652f\u6491\u2014\u4ee3\u507f\u89c6\u89c9\u4ee3\u7406: --"))
+            self.metric_risk_label.setText(zh(r"\u4ee3\u507f\u98ce\u9669: --"))
+            self.metric_advice_label.setText(zh(r"\u7ea0\u6b63\u5efa\u8bae: --"))
+            self.metric_confidence_label.setText(zh(r"\u7cfb\u7edf\u53ef\u4fe1\u5ea6: --"))
             return
-        if detail.get("gate_state"):
-            self.val_sh.setText(zh(r"\u9636\u6bb5: ") + str(grade))
-            self.val_pl.setText(zh(r"\u5012\u7f6e\u95e8\u63a7\uff1a\u672a\u901a\u8fc7"))
-            self.val_sc.setText(zh(r"\u52a8\u4f5c\u8bc4\u5206: --"))
-            return
-        self.val_sh.setText(zh(r"\u52a8\u4f5c\u8bc4\u5206: ") + f"{score:.0f} / 100 ({grade})")
-        self.val_pl.setText(zh(r"\u7075\u6d3b\u5173\u8282\u9501\u5b9a: ") + f"{detail.get('risk_mobile_lock', 0.0) * 100:.0f}%")
-        self.val_sc.setText(zh(r"\u975e\u7075\u6d3b\u5173\u8282\u4ee3\u507f: ") + f"{detail.get('risk_stiff_comp', 0.0) * 100:.0f}%")
+        risk = max(0.0, min(100.0, 100.0 - float(score)))
+        advice_text = str(advice).strip() if advice else "--"
+        self.metric_score_label.setText(zh(r"\u7efc\u5408\u8bc4\u5206: ") + f"{score:.0f} / 100 ({grade})")
+        self.metric_joint_label.setText(
+            zh(r"\u5173\u8282\u2014\u59ff\u6001\u7b26\u5408\u5ea6: ")
+            + f"{float(detail.get('score_joint_conformity', 0.0)):.0f} / 100"
+        )
+        self.metric_topology_label.setText(
+            zh(r"\u62d3\u6251\u7a33\u5b9a\u4e0e\u4ee3\u507f\u63a7\u5236: ")
+            + f"{float(detail.get('score_topology_stability', 0.0)):.0f} / 100"
+        )
+        self.metric_support_label.setText(
+            zh(r"\u652f\u6491\u2014\u4ee3\u507f\u89c6\u89c9\u4ee3\u7406: ")
+            + f"{float(detail.get('score_force_proxy', 0.0)):.0f} / 100"
+        )
+        self.metric_risk_label.setText(zh(r"\u4ee3\u507f\u98ce\u9669: ") + f"{risk:.0f}%")
+        self.metric_advice_label.setText(zh(r"\u7ea0\u6b63\u5efa\u8bae: ") + advice_text)
+        self.metric_confidence_label.setText(
+            zh(r"\u7cfb\u7edf\u53ef\u4fe1\u5ea6: ") + self._system_confidence_text(detail)
+        )
+
+    def update_basic_metrics(self, metrics, advice=None):
+        advice_text = str(advice).strip() if advice else zh(r"\u89c1\u4e0b\u65b9\u62a5\u544a")
+        self.metric_score_label.setText(zh(r"\u7efc\u5408\u8bc4\u5206: ") + zh(r"\u57fa\u7840\u4f53\u6001\u8bc4\u4f30"))
+        self.metric_joint_label.setText(zh(r"\u5173\u8282\u2014\u59ff\u6001\u7b26\u5408\u5ea6: ") + zh(r"\u9ad8\u4f4e\u80a9: ") + f"{abs(metrics['sh']):.1f}\u00b0")
+        self.metric_topology_label.setText(zh(r"\u62d3\u6251\u7a33\u5b9a\u4e0e\u4ee3\u507f\u63a7\u5236: ") + zh(r"\u9aa8\u76c6\u504f\u79fb: ") + f"{abs(metrics['pl']):.1f}\u00b0")
+        self.metric_support_label.setText(zh(r"\u652f\u6491\u2014\u4ee3\u507f\u89c6\u89c9\u4ee3\u7406: ") + zh(r"\u810a\u67f1\u4fa7\u5f2f: ") + f"{abs(metrics['sc']):.1f}\u00b0")
+        self.metric_risk_label.setText(zh(r"\u4ee3\u507f\u98ce\u9669: ") + zh(r"\u89c1\u4e0b\u65b9\u62a5\u544a"))
+        self.metric_advice_label.setText(zh(r"\u7ea0\u6b63\u5efa\u8bae: ") + advice_text)
+        self.metric_confidence_label.setText(zh(r"\u7cfb\u7edf\u53ef\u4fe1\u5ea6: ") + zh(r"\u5b9e\u65f6\u59ff\u6001\u5df2\u8bc6\u522b"))
 
     def update_report_html(self, html, force=False):
         scroll_bar = self.report_area.verticalScrollBar()
