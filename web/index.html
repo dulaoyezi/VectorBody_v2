@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f6f0">
+  <title>VectorBody — 科学地理解每一次动作</title>
+  <link rel="stylesheet" href="/web/styles.css">
+</head>
+<body>
+<svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+ <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+ <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></symbol>
+ <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="m18 10 4-3v10l-4-3"/></symbol>
+ <symbol id="i-report" viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6zM15 2v5h5M9 12h7M9 16h7"/></symbol>
+ <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7z"/></symbol>
+ <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+ <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
+ <symbol id="i-arrowleft" viewBox="0 0 24 24"><path d="M20 12H4m7-7-7 7 7 7"/></symbol>
+ <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+ <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 2 10 18H2zM12 9v5m0 4v.1"/></symbol>
+ <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v7c0 5-4 8-9 10-5-2-9-5-9-10V6z"/><path d="m8 12 3 3 5-6"/></symbol>
+ <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
+ <symbol id="i-volume" viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3zM16 8c3 2 3 6 0 8"/></symbol>
+ <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+ <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+ <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+ <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></symbol>
+</svg>
+<div class="site">
+<header class="nav-bar">
+  <a class="brand" href="#home" data-go="home" aria-label="VectorBody 首页"><span class="brand-icon"><span></span></span><span class="brand-text"><strong>VectorBody</strong><small>智能动作感知与评估</small></span></a>
+  <nav aria-label="主导航"><button class="nav-link current" data-go="home">首页</button><button class="nav-link" data-go="live">实时评估</button><button class="nav-link" data-go="video">视频评估</button><button class="nav-link" data-go="reports">评估报告</button></nav>
+  <div class="nav-right"><span id="server-dot" class="online-state"><i></i><span>检查服务中</span></span><button id="nav-quick" class="nav-cta" data-go="live">立即体验 <svg><use href="#i-arrow"/></svg></button></div>
+</header>
+<main>
+<section id="page-home" class="page active">
+  <div class="hero">
+   <div class="hero-copy"><span class="eyebrow"><i></i> VECTORBODY 2.0 · HUMAN MOTION INTELLIGENCE</span><h1>让每一次练习，<br><em>都有迹可循。</em></h1><p>从单目视觉到结构化人体理解，以可解释的姿态评估和及时反馈，让科学练习回归每一个动作。</p><div class="hero-buttons"><button class="btn primary" data-go="live"><svg><use href="#i-camera"/></svg>开启实时评估 <svg><use href="#i-arrow"/></svg></button><button class="btn outline" data-go="video"><svg><use href="#i-video"/></svg>上传视频评估</button></div><div class="hero-foot"><span>无需穿戴设备</span><span>支持8类体式</span><span>专业结构化评分</span></div></div>
+   <div class="hero-visual" aria-hidden="true"><div class="sun"></div><div class="ground"></div><svg class="yoga-figure" viewBox="0 0 500 440"><g stroke="none" fill="#54654b"><circle cx="256" cy="92" r="26"/><path d="M236 117 Q257 112 272 124 L282 202 Q277 225 258 229 L232 202Z"/><path d="M239 138 Q200 135 179 158 L117 187 109 179 166 145 Q198 121 240 127Z"/><path d="M271 139 Q300 119 346 140 L416 170 410 182 345 156 Q308 144 280 157Z"/><path d="M235 207 Q220 235 197 255 L124 307 138 322 218 278 267 240Z"/><path d="M266 210 Q292 235 325 247 L387 239 391 260 321 274 Q265 261 247 235Z"/><path d="M112 305 Q98 321 68 329 L67 341 134 335 141 315Z"/><path d="M384 241 Q411 241 440 225 L449 239 400 267 381 258Z"/></g><g fill="none" stroke="#f5f2e8" stroke-width="3" opacity=".55"><path d="M256 125 252 205 244 232M249 139 178 151 118 183M273 144 346 145 415 177M244 228 199 264 132 314M254 228 320 260 390 252"/></g><g fill="#d5ae60" stroke="#fefdf9" stroke-width="3"><circle cx="256" cy="125" r="5"/><circle cx="249" cy="139" r="5"/><circle cx="178" cy="151" r="5"/><circle cx="118" cy="183" r="5"/><circle cx="273" cy="144" r="5"/><circle cx="346" cy="145" r="5"/><circle cx="415" cy="177" r="5"/><circle cx="244" cy="228" r="5"/><circle cx="199" cy="264" r="5"/><circle cx="132" cy="314" r="5"/><circle cx="320" cy="260" r="5"/><circle cx="390" cy="252" r="5"/></g></svg><div class="float-note"><span class="note-icon"><svg><use href="#i-activity"/></svg></span><span><strong>身体结构可视化</strong><small>Pose · Topology · DLS</small></span></div><span class="vertical-type">MOVE WITH CLARITY</span></div>
+  </div>
+  <div class="section-heading"><div><span class="section-kicker">WHAT YOU CAN DO</span><h2>一套引擎，两种评估方式</h2></div><p>从日常实时训练，到完整视频回看，<br>依据同一套运动结构与风险评分体系。</p></div>
+  <div class="entry-grid"><button class="entry-card" data-go="live"><span class="entry-icon"><svg><use href="#i-camera"/></svg></span><span><small>01 / LIVE ASSESSMENT</small><strong>实时摄像评估</strong><span>语音动作引导 · 稳定自动评分 · 即时纠正</span></span><svg class="entry-arrow"><use href="#i-arrow"/></svg></button><button class="entry-card" data-go="video"><span class="entry-icon gold"><svg><use href="#i-video"/></svg></span><span><small>02 / VIDEO ANALYSIS</small><strong>视频动作分析</strong><span>逐帧检测 · 最佳表现帧 · 结构化报告</span></span><svg class="entry-arrow"><use href="#i-arrow"/></svg></button></div>
+  <div class="credibility"><div><span class="eyebrow">THE SCIENCE INSIDE</span><strong>真正可解释的动作分析</strong><p>MediaPipe Pose 33关键点 · OneEuroFilter · 骨盆根人体拓扑 · DLS稳定优化 · 虚拟骨长一致性 · S1/S2/S3</p></div><div class="cred-badge"><svg><use href="#i-shield"/></svg><span>教学辅助工具<br><small>非医疗诊断</small></span></div></div>
+</section>
+
+<section id="page-live" class="page">
+ <div class="page-intro"><div><span class="section-kicker">LIVE ASSESSMENT</span><h2>实时动作评估</h2><p>按语音进入体式，身体稳定约2秒后自动启动评分；调整动作后可继续观察变化。</p></div><span class="step-tag">摄像头输入 · 实时反馈</span></div>
+ <div class="assessment-grid">
+  <div class="panel stage-panel"><div class="panel-title"><span><svg><use href="#i-camera"/></svg> 实时画面</span><span id="live-status" class="status-tag neutral">尚未开始</span></div>
+   <div class="video-stage" id="live-stage"><video id="live-player" autoplay muted playsinline></video><canvas id="live-overlay"></canvas><div class="empty-stage" id="live-empty"><svg><use href="#i-camera"/></svg><strong>准备好开始了吗？</strong><span>摄像头画面仅在评估时发送至本次会话</span></div><span class="stage-hint" id="live-hint">选择体式后开启摄像头</span></div>
+   <div class="control-grid"><label>体式<select id="live-pose"></select></label><label>视角<select id="live-view"><option value="front">正位</option><option value="side">侧位</option></select></label><label>训练级别<select id="live-level"><option value="normal">普通</option><option value="beginner">新手</option></select></label></div>
+   <div class="controls"><button class="btn primary" id="live-toggle"><svg><use href="#i-play"/></svg>开启摄像头评估</button><button class="btn subtle" id="voice-toggle"><svg><use href="#i-volume"/></svg><span>语音已开启</span></button></div>
+  </div>
+  <div class="panel result-panel"><div class="panel-title"><span><svg><use href="#i-activity"/></svg> 动作评价</span><span id="live-grade" class="status-tag neutral">待检测</span></div>
+   <div class="phase-flow" id="phase-flow"><span class="on">动作准备</span><span>稳定确认</span><span>正式评分</span><span>纠正改进</span></div>
+   <div class="score-block"><div class="score-circle" id="live-ring"><strong id="live-score">—</strong><small>综合评分</small></div><div class="score-explain"><small>实时综合评分 / 100</small><h3 id="live-headline">等待有效动作</h3><p id="live-advice">开启评估后，系统将引导你调整位置、完成动作并保持稳定。</p></div></div>
+   <div id="live-metrics" class="metric-grid"><div><span>S1 关节—姿态符合度</span><strong>—</strong><i><em></em></i></div><div><span>S2 拓扑稳定与代偿控制</span><strong>—</strong><i><em></em></i></div><div><span>S3 支撑—代偿视觉代理</span><strong>—</strong><i><em></em></i></div></div>
+   <div class="risk-strip"><span><svg><use href="#i-shield"/></svg> 代偿风险</span><strong id="live-risk">待评价</strong></div>
+   <details class="tech-details"><summary>查看技术诊断依据 <svg><use href="#i-chevron"/></svg></summary><div id="live-tech">等待真实检测数据…</div></details>
+  </div>
+ </div>
+</section>
+
+<section id="page-video" class="page">
+ <div class="page-intro"><div><span class="section-kicker">VIDEO ASSESSMENT</span><h2>视频动作分析</h2><p>上传一段完整体式视频，自动识别有效保持阶段，保留最佳表现帧与评估依据。</p></div><span class="step-tag">评估结果自动归档</span></div>
+ <div class="assessment-grid">
+  <div class="panel stage-panel"><div class="panel-title"><span><svg><use href="#i-video"/></svg> 视频输入</span><span class="status-tag neutral" id="upload-badge">未选择文件</span></div><label class="file-drop" id="file-drop"><input type="file" id="video-file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,video/*"><svg><use href="#i-video"/></svg><strong>拖放视频，或点击选择文件</strong><span>支持 MP4、MOV、AVI、MKV、WebM；建议使用H.264编码，完整全身入镜。</span></label><div class="video-stage uploaded-stage" id="uploaded-stage" hidden><video id="uploaded-player" controls playsinline></video><canvas id="uploaded-overlay"></canvas></div>
+   <div class="control-grid"><label>体式<select id="video-pose"></select></label><label>视角<select id="video-view"><option value="front">正位</option><option value="side">侧位</option></select></label><label>训练级别<select id="video-level"><option value="normal">普通</option><option value="beginner">新手</option></select></label></div>
+   <div class="controls"><button class="btn primary" id="analyze-video"><svg><use href="#i-activity"/></svg>开始视频分析</button><span class="subtle-caption" id="upload-info">暂未选择视频</span></div>
+  </div>
+  <div class="panel result-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 分析结果</span><span class="status-tag neutral" id="video-grade">待分析</span></div>
+   <div class="score-block"><div class="score-circle" id="video-ring"><strong id="video-score">—</strong><small>最佳帧评分</small></div><div class="score-explain"><small>有效保持窗口内的最佳评分</small><h3 id="video-headline">尚无分析结果</h3><p id="video-advice">选择视频和体式后，点击“开始视频分析”。不会返回虚构评分。</p></div></div>
+   <div class="metric-grid" id="video-metrics"><div><span>S1 关节—姿态符合度</span><strong>—</strong><i><em></em></i></div><div><span>S2 拓扑稳定与代偿控制</span><strong>—</strong><i><em></em></i></div><div><span>S3 支撑—代偿视觉代理</span><strong>—</strong><i><em></em></i></div></div>
+   <div class="data-inline"><div><span>最佳表现时刻</span><strong id="best-time">—</strong></div><div><span>有效评分帧数</span><strong id="valid-frames">—</strong></div><div><span>代偿风险</span><strong id="video-risk">—</strong></div></div>
+   <details class="tech-details"><summary>查看拓扑、DLS与分项指标 <svg><use href="#i-chevron"/></svg></summary><div id="video-tech">等待真实检测数据…</div></details>
+   <button class="btn outline wide" id="show-video-report" disabled><svg><use href="#i-report"/></svg> 查看完整报告</button>
+  </div>
+ </div>
+</section>
+
+<section id="page-reports" class="page">
+ <div class="page-intro"><div><span class="section-kicker">ASSESSMENT ARCHIVE</span><h2>评估报告与历史记录</h2><p>保存动作成绩、技术诊断与纠正建议，便于后续复核和比较练习表现。</p></div><button class="btn outline" id="refresh-reports"><svg><use href="#i-activity"/></svg>刷新记录</button></div>
+ <div class="panel reports-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 评估记录</span><span class="subtle-caption">只保存分析结果，不保存原视频；记录存储于当前服务器</span></div><div id="reports-list" class="report-list"><div class="empty-message">尚无评估记录，先完成一次动作评估。</div></div></div>
+ <div id="report-detail" class="panel detail-panel" hidden><div class="panel-title"><span><svg><use href="#i-report"/></svg> 完整评估报告</span><button class="btn subtle" id="print-report"><svg><use href="#i-download"/></svg>打印 / 保存PDF</button></div><div id="report-content"></div></div>
+</section>
+</main>
+<footer><span>VECTORBODY 2.0</span><span>以视觉理解动作，以证据支持改进</span><span>教学辅助评估 · 不用于医学诊断</span></footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/web/app.js" defer></script>
+</body>
+</html>

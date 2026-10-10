@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: vectorbody-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: VECTORBODY_DATA_DIR
+        value: /data
+      - key: VECTORBODY_MAX_UPLOAD_MB
+        value: '120'
+    disk:
+      name: vectorbody-reports
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /api/health
