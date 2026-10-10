@@ -287,7 +287,7 @@ def test_qr_encodes_only_public_https_login_link(tmp_path, monkeypatch):
         response=client.get('/api/auth/qr')
         assert response.status_code == 200
         assert response.headers['content-type'].startswith('image/png')
-        assert response.content.startswith(b'\\x89PNG\\r\\n\\x1a\\n')
+        assert response.content.startswith(b'\x89PNG\r\n\x1a\n')
         assert b'A_Very_Strong_Demo_Site_Password_123' not in response.content
         login(client)
         assert client.get('/api/auth/me').json()['shared_account'] is True
