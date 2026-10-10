@@ -5,7 +5,8 @@ COPY requirements_web.txt .
 RUN pip install --no-cache-dir -r requirements_web.txt
 COPY core ./core
 COPY web ./web
-COPY web_app.py .
+COPY assets ./assets
+COPY web_app.py report_evidence.py ./
 ENV VECTORBODY_DATA_DIR=/app/web_data PORT=8000 PYTHONUNBUFFERED=1
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn web_app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
