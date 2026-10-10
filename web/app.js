@@ -25,14 +25,13 @@
   // Original desktop images: front/back skeleton & muscle. Side view is a diagram only.
   const ISSUE_POSITIONS = {
     front:{neck:[[50,18]],shoulders:[[36,25],[64,25]],spine:[[50,45]],pelvis:[[50,64]],knees:[[41,78],[59,78]],ankles:[[41,93],[59,93]]},
-    side:{neck:[[51,18]],shoulders:[[53,28]],spine:[[51,44]],pelvis:[[49,63]],knees:[[56,80],[42,80]],ankles:[[55,92],[42,92]]},
     back:{neck:[[50,18]],shoulders:[[35,25],[65,25]],spine:[[50,45]],pelvis:[[50,64]],knees:[[40,80],[60,80]],ankles:[[40,93],[60,93]]}
   };
   const evidenceSource=source=>source==='report'?state.lastReport?.body:source==='live'?state.lastLive:state.lastVideo?.result;
   function anatomyWidget(source,initial='front',full=false){
-    return `<div class="anatomy-widget ${full?'anatomy-full':'anatomy-compact'}" data-source="${esc(source)}" data-orientation="${esc(initial)}" data-layer="skeleton">
+    return `<div class="anatomy-widget ${full?'anatomy-full':'anatomy-compact'}" data-source="${esc(source)}" data-orientation="${initial==='back'?'back':'front'}" data-layer="skeleton">
       <div class="anatomy-switches"><div class="seg-switch" role="group" aria-label="人体观察视角">
-        <button type="button" data-anatomy-view="front">正位</button><button type="button" data-anatomy-view="side">侧位示意</button><button type="button" data-anatomy-view="back">背面</button></div>
+        <button type="button" data-anatomy-view="front">正位</button><button type="button" data-anatomy-view="back">背面</button></div>
         <div class="seg-switch" role="group" aria-label="人体模型类型"><button type="button" data-anatomy-layer="skeleton">骨骼</button><button type="button" data-anatomy-layer="muscle">肌肉</button></div></div>
       <div class="anatomy-columns"><figure class="anatomy-figure"><div class="anatomy-image-shell"><img data-anatomy-image alt="人体解剖视图" loading="lazy"><div class="anatomy-pins"></div></div><figcaption data-anatomy-caption></figcaption></figure>
       <section class="anatomy-findings"><h4>重点关注部位</h4><div class="finding-cards"></div></section></div>
@@ -40,13 +39,13 @@
   }
   function syncAnatomy(widget){
     if(!widget)return;
-    const view=widget.dataset.orientation||'front',layer=widget.dataset.layer||'skeleton';
-    const url=view==='side'?'/web/anatomy_side.svg':`/api/anatomy/${view}/${layer}`;
+    const view=widget.dataset.orientation==='back'?'back':'front',layer=widget.dataset.layer||'skeleton';
+    const url=`/api/anatomy/${view}/${layer}`;
     const img=widget.querySelector('[data-anatomy-image]');
     if(img.getAttribute('src')!==url)img.setAttribute('src',url);
     widget.querySelectorAll('[data-anatomy-view]').forEach(b=>b.classList.toggle('selected',b.dataset.anatomyView===view));
-    widget.querySelectorAll('[data-anatomy-layer]').forEach(b=>{b.classList.toggle('selected',b.dataset.anatomyLayer===layer);b.disabled=view==='side'&&b.dataset.anatomyLayer==='muscle'});
-    widget.querySelector('[data-anatomy-caption]').textContent=view==='side'?'侧面骨骼示意图 · 非侧位实测数据':(view==='back'?'背面':'正面')+(layer==='muscle'?'肌肉':'骨骼')+'示意图 · 标记位置为近似定位';
+    widget.querySelectorAll('[data-anatomy-layer]').forEach(b=>{b.classList.toggle('selected',b.dataset.anatomyLayer===layer);b.disabled=false});
+    widget.querySelector('[data-anatomy-caption]').textContent=(view==='back'?'背面':'正面')+(layer==='muscle'?'肌肉':'骨骼')+'示意图 · 标记位置为近似定位';
     const findings=(evidenceSource(widget.dataset.source)?.issue_regions||[]).filter(x=>x.region);
     const unique=[];
     findings.forEach(x=>{if(!unique.some(z=>z.region===x.region))unique.push(x)});
@@ -62,7 +61,7 @@
   }
   document.addEventListener('click',e=>{
     const v=e.target.closest('[data-anatomy-view]'),layer=e.target.closest('[data-anatomy-layer]');
-    if(v||layer){const widget=(v||layer).closest('.anatomy-widget');if(v)widget.dataset.orientation=v.dataset.anatomyView;if(layer)widget.dataset.layer=layer.dataset.anatomyLayer;if(widget.dataset.orientation==='side')widget.dataset.layer='skeleton';syncAnatomy(widget)}
+    if(v||layer){const widget=(v||layer).closest('.anatomy-widget');if(v)widget.dataset.orientation=v.dataset.anatomyView;if(layer)widget.dataset.layer=layer.dataset.anatomyLayer;syncAnatomy(widget)}
     const photo=e.target.closest('[data-photo-type]');if(photo)setReportPhoto(photo.dataset.photoType);
   });
   function setReportPhoto(kind){
@@ -124,7 +123,7 @@
         <p class="detail-advice"><b>可解释纠正与反馈：</b>${esc(r.advice||'暂无')}<br>总体代偿风险：${esc(r.risk_pct)}%　· 等级：${esc(r.grade)}</p>
         <details class="tech-details" open><summary>结构优化与骨长依据 ${icon('chevron')}</summary><div>${tech(r)}</div></details>
         <h4 class="report-subheading">分项指标与评分依据</h4><div class="report-table-wrap"><table class="metric-table"><thead><tr><th>指标</th><th>观测值</th><th>评分</th><th>稳定性</th><th>权重</th></tr></thead><tbody>${rows}</tbody></table></div>
-        <p class="subtle-caption report-privacy">照片是个人运动影像，保存在当前服务器，应经授权访问和管理。系统仅用于动作学习与教学辅助，不用于医疗诊断；切换另一侧的示意图并不表示采集了该角度。</p>
+        <p class="subtle-caption report-privacy">照片是个人运动影像，保存在当前服务器，应经授权访问和管理。系统仅用于动作学习与教学辅助，不用于医疗诊断；切换正面或背面解剖图不代表额外采集了对应视角。</p>
       </div>`;
       $('report-detail').hidden=false;syncAnatomy($('report-content').querySelector('.anatomy-widget'));setReportPhoto('original');
       $('report-detail').scrollIntoView({behavior:'smooth',block:'start'});
