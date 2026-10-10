@@ -93,9 +93,43 @@
   $('video-file').addEventListener('change',e=>acceptFile(e.target.files?.[0]));const zone=$('file-drop');zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag')});zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');acceptFile(e.dataTransfer?.files?.[0])});
   $('analyze-video').addEventListener('click',async()=>{if(!state.videoFile){notify('请先选择待分析视频。');return}const btn=$('analyze-video');btn.disabled=true;btn.textContent='正在执行逐帧视觉分析…';try{const fd=new FormData();fd.append('file',state.videoFile);fd.append('pose',$('video-pose').value);fd.append('view',$('video-view').value);fd.append('level',$('video-level').value);const data=await api('/api/analyze-video',{method:'POST',body:fd});state.lastVideo=data;resultUI('video',data.result);$('best-time').textContent=`${data.video.best_time_sec}s`;$('valid-frames').textContent=data.video.evaluated_frames;$('show-video-report').disabled=false;$('video-risk').textContent=`${Math.round(data.result.risk_pct)}%`;const player=$('uploaded-player');player.currentTime=data.video.best_time_sec;player.addEventListener('seeked',()=>drawSkeleton($('uploaded-overlay'),player,data.result.landmarks),{once:true});notify('已使用VectorBody核心算法完成视频评估并归档。')}catch(e){notify(`分析失败：${e.message}`)}finally{btn.disabled=false;btn.innerHTML=`${icon('activity')}开始视频分析`}});
   $('show-video-report').addEventListener('click',async()=>{navigate('reports');if(state.lastVideo?.report_id)await openReport(state.lastVideo.report_id)});
-  async function loadReports(){const box=$('reports-list');box.innerHTML='<div class="empty-message">正在加载记录…</div>';try{const data=await api('/api/reports');if(!data.reports?.length){box.innerHTML='<div class="empty-message">还没有记录。完成一次动作评估后，将自动保存在这里。</div>';return}box.innerHTML=data.reports.map(r=>`<div class="report-row"><div class="report-name">${esc(POSE_NAMES[r.pose]||r.pose)} · ${r.source==='live'?'实时评估':'视频评估'}<small>${esc(new Date(r.created_at).toLocaleString())} · ${r.view==='front'?'正位':'侧位'} · ${r.level==='beginner'?'新手':'普通'}</small></div><strong class="report-score">${Math.round(r.score)}分</strong><button class="report-action" data-report="${esc(r.id)}">查看报告 →</button></div>`).join('');box.querySelectorAll('[data-report]').forEach(x=>x.addEventListener('click',()=>openReport(x.dataset.report)))}catch(e){box.innerHTML=`<div class="empty-message">加载失败：${esc(e.message)}</div>`}}
+  async function loadReports(){
+    const box=$('reports-list');box.innerHTML='<div class="empty-message">正在加载记录…</div>';
+    try{
+      const data=await api('/api/reports');
+      if(!data.reports?.length){box.innerHTML='<div class="empty-message">还没有记录。完成一次动作评估后，将自动保存在这里。</div>';return}
+      box.innerHTML=data.reports.map(r=>`<div class="report-row">
+        <div class="report-thumb">${r.has_photo?`<img alt="档案最佳帧" loading="lazy" src="/api/reports/${encodeURIComponent(r.id)}/photos/original">`:icon('image')}</div>
+        <div class="report-name">${esc(POSE_NAMES[r.pose]||r.pose)} · ${r.source==='live'?'实时评估':'视频评估'}<small>${esc(new Date(r.created_at).toLocaleString())} · ${r.view==='front'?'正位':'侧位'} · ${r.level==='beginner'?'新手':'普通'}</small></div>
+        <strong class="report-score">${Math.round(r.score)}分</strong><button class="report-action" data-report="${esc(r.id)}">查看报告 →</button></div>`).join('');
+      box.querySelectorAll('[data-report]').forEach(b=>b.addEventListener('click',()=>openReport(b.dataset.report)));
+    }catch(e){box.innerHTML=`<div class="empty-message">加载失败：${esc(e.message)}</div>`}
+  }
   $('refresh-reports').addEventListener('click',loadReports);
-  async function openReport(id){try{const data=await api('/api/reports/'+encodeURIComponent(id));state.lastReport=data;const r=data.body;const rows=Object.entries(r.metrics||{}).map(([key,item])=>`<tr><td>${esc(key)}</td><td>${esc(item.value)}</td><td>${esc(item.score)}</td><td>${esc(item.stability)}</td><td>${esc(item.weight)}</td></tr>`).join('');$('report-content').innerHTML=`<div class="detail-body"><div class="detail-head"><div><h3>${esc(POSE_NAMES[data.pose]||data.pose)} · ${data.source==='live'?'实时评估':'视频评估'}</h3><p>${esc(new Date(data.created_at).toLocaleString())} · ${data.view==='front'?'正位':'侧位'} · ${data.level==='beginner'?'新手':'普通'} · ${esc(data.id)}</p></div><strong>${Math.round(r.score)} / 100</strong></div><div class="report-dims"><div><strong>${esc(r.dimensions.s1)}</strong><span>S1 关节—姿态符合度</span></div><div><strong>${esc(r.dimensions.s2)}</strong><span>S2 拓扑稳定与代偿控制</span></div><div><strong>${esc(r.dimensions.s3)}</strong><span>S3 支撑—代偿视觉代理</span></div></div><p class="detail-advice"><b>纠正与反馈：</b>${esc(r.advice||'暂无')}<br>总体代偿风险：${esc(r.risk_pct)}%　等级：${esc(r.grade)}</p><h4>拓扑、DLS与骨长一致性</h4>${tech(r)}<h4>动作分项指标</h4><table class="metric-table"><thead><tr><th>指标</th><th>观测值</th><th>评分</th><th>稳定性</th><th>权重</th></tr></thead><tbody>${rows}</tbody></table><p class="subtle-caption">本结果仅用于动作学习与教学辅助，不用于医疗诊断；不包含可直接测量的肌肉力量。</p></div>`;$('report-detail').hidden=false;$('report-detail').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){notify('无法打开报告：'+e.message)}}
+  async function openReport(id){
+    try{
+      const data=await api('/api/reports/'+encodeURIComponent(id));state.lastReport=data;const r=data.body;
+      const rows=Object.entries(r.metrics||{}).map(([key,item])=>`<tr><td>${esc(key)}</td><td>${esc(item.value)}</td><td>${esc(item.score)}</td><td>${esc(item.stability)}</td><td>${esc(item.weight)}</td></tr>`).join('');
+      const meta=`${esc(new Date(data.created_at).toLocaleString())} · ${data.view==='front'?'正位采集':'侧位采集'} · ${data.level==='beginner'?'新手':'普通'} · ${esc(data.id)}`;
+      $('report-content').innerHTML=`<div class="detail-body">
+        <div class="detail-head"><div><span class="report-kicker">MOVEMENT EVIDENCE REPORT</span>
+          <h3>${esc(POSE_NAMES[data.pose]||data.pose)} · ${data.source==='live'?'实时评估':'视频评估'}</h3><p>${meta}</p></div><strong>${Math.round(r.score)} <small>/ 100</small></strong></div>
+        <div class="report-evidence">
+          <article class="evidence-card photo-evidence"><div class="evidence-head"><div>${icon('image')}<strong>最佳评分帧 · 档案照片</strong></div><div class="seg-switch"><button type="button" data-photo-type="original" class="selected">原始照片</button><button type="button" data-photo-type="skeleton">骨架标注</button></div></div>
+             <figure class="archive-photo"><img id="archive-photo" alt="最佳评分帧" loading="eager"><div class="archive-photo-empty" id="archive-photo-empty" hidden>没有归档照片</div></figure>
+             <div class="photo-caption">${r.time_sec!=null?'最佳时刻 '+esc(r.time_sec)+'s · ':''}来自本次评分最高的有效帧；保存原始照片与骨架标注照片，不保留完整视频。</div></article>
+          <article class="evidence-card anatomy-evidence"><div class="evidence-head"><div>${icon('target')}<strong>人体骨骼 / 肌肉 · 部位定位</strong></div></div>${anatomyWidget('report',data.view,true)}</article>
+        </div>
+        <div class="report-dims"><div><strong>${esc(r.dimensions?.s1??'—')}</strong><span>S1 关节—姿态符合度</span></div><div><strong>${esc(r.dimensions?.s2??'—')}</strong><span>S2 拓扑稳定与代偿控制</span></div><div><strong>${esc(r.dimensions?.s3??'—')}</strong><span>S3 支撑—代偿视觉代理</span></div></div>
+        <p class="detail-advice"><b>可解释纠正与反馈：</b>${esc(r.advice||'暂无')}<br>总体代偿风险：${esc(r.risk_pct)}%　· 等级：${esc(r.grade)}</p>
+        <details class="tech-details" open><summary>结构优化与骨长依据 ${icon('chevron')}</summary><div>${tech(r)}</div></details>
+        <h4 class="report-subheading">分项指标与评分依据</h4><div class="report-table-wrap"><table class="metric-table"><thead><tr><th>指标</th><th>观测值</th><th>评分</th><th>稳定性</th><th>权重</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="subtle-caption report-privacy">照片是个人运动影像，保存在当前服务器，应经授权访问和管理。系统仅用于动作学习与教学辅助，不用于医疗诊断；切换另一侧的示意图并不表示采集了该角度。</p>
+      </div>`;
+      $('report-detail').hidden=false;syncAnatomy($('report-content').querySelector('.anatomy-widget'));setReportPhoto('original');
+      $('report-detail').scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(e){notify('无法打开报告：'+e.message)}
+  }
   $('print-report').addEventListener('click',()=>window.print());
   window.addEventListener('beforeunload',()=>{if(state.stream)state.stream.getTracks().forEach(t=>t.stop())});
   window.addEventListener('resize',()=>{if(state.running&&state.lastLive)drawSkeleton($('live-overlay'),$('live-player'),state.lastLive.landmarks)});
