@@ -23,6 +23,7 @@ import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from core.compensation_risk_engine import CompensationRiskEngine
@@ -323,27 +324,11 @@ def live_stop(session_id: str = Form(...), archive: bool = Form(True)):
             state.close()
 
 
-@app.post('/api/analyze-video')
-async def analyze_video(
-    file: UploadFile = File(...), pose: str = Form('warrior2'),
-    view: str = Form('front'), level: str = Form('normal'),
-):
-    params_ok(pose, view, level)
-    suffix = Path(file.filename or '').suffix.lower()
-    if suffix not in ALLOWED_VIDEO:
-        raise HTTPException(415, '视频格式不支持，请选择MP4、MOV、AVI、MKV或WebM。')
-    path = None
+def _analyze_video_file(path: str, pose: str, view: str, level: str):
+    """CPU-heavy inference runs off the FastAPI event loop."""
     cap = None
     model = None
     try:
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as out:
-            path = out.name
-            total = 0
-            while chunk := await file.read(1024 * 1024):
-                total += len(chunk)
-                if total > MAX_UPLOAD_MB * 1024 * 1024:
-                    raise HTTPException(413, f'文件不能超过{MAX_UPLOAD_MB}MB。')
-                out.write(chunk)
         cap = cv2.VideoCapture(path)
         if not cap.isOpened():
             raise HTTPException(422, '视频无法解码，建议转成H.264编码的MP4。')
@@ -351,20 +336,20 @@ async def analyze_video(
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         if not np.isfinite(fps) or fps < 1:
             fps = 30.0
-        idx = good = analyzed_count = 0
+        idx = good = processed = 0
         best = None
         last_center = None
         stable_from = None
         stride = 2
         max_processed = 1800
-        while analyzed_count < max_processed:
+        while processed < max_processed:
             ok, img = cap.read()
             if not ok or img is None:
                 break
             idx += 1
             if idx % stride:
                 continue
-            analyzed_count += 1
+            processed += 1
             pose_data, display = extract(img, model)
             h, w = img.shape[:2]
             if pose_data is None or not in_view(display) or not centered(display, w, h):
@@ -389,15 +374,40 @@ async def analyze_video(
         if best is None:
             raise HTTPException(422, '未找到稳定2秒以上的有效姿态。请确认全身入镜、正侧位和动作选择正确。')
         rid = save_report('video', pose, view, level, best)
-        return {'ok': True, 'report_id': rid, 'pose': {'id': pose, 'name': POSES[pose], 'view': view, 'level': level},
-                'result': best, 'video': {'processed_frames': analyzed_count, 'evaluated_frames': good,
-                                        'best_frame': best['frame_index'], 'best_time_sec': best['time_sec']},
+        return {'ok': True, 'report_id': rid,
+                'pose': {'id': pose, 'name': POSES[pose], 'view': view, 'level': level},
+                'result': best,
+                'video': {'processed_frames': processed, 'evaluated_frames': good,
+                          'best_frame': best['frame_index'], 'best_time_sec': best['time_sec']},
                 'notice': '仅用于教学辅助，不替代教师判断或医疗诊断。'}
     finally:
         if cap is not None:
             cap.release()
         if model is not None:
             model.close()
+
+
+@app.post('/api/analyze-video')
+async def analyze_video(
+    file: UploadFile = File(...), pose: str = Form('warrior2'),
+    view: str = Form('front'), level: str = Form('normal'),
+):
+    params_ok(pose, view, level)
+    suffix = Path(file.filename or '').suffix.lower()
+    if suffix not in ALLOWED_VIDEO:
+        raise HTTPException(415, '视频格式不支持，请选择MP4、MOV、AVI、MKV或WebM。')
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as out:
+            path = out.name
+            total = 0
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_UPLOAD_MB * 1024 * 1024:
+                    raise HTTPException(413, f'文件不能超过{MAX_UPLOAD_MB}MB。')
+                out.write(chunk)
+        return await run_in_threadpool(_analyze_video_file, path, pose, view, level)
+    finally:
         if path and os.path.exists(path):
             os.remove(path)
         await file.close()
@@ -435,7 +445,6 @@ def index():
 
 @app.get('/web/{asset_path:path}')
 def web_asset(asset_path: str):
-    from fastapi.responses import FileResponse
     path = (WEB / asset_path).resolve()
     if WEB.resolve() not in path.parents or not path.is_file():
         raise HTTPException(404)
