@@ -2,6 +2,8 @@
 
 以原仓库 `core/` 算法作为唯一评分引擎的浏览器版。保留现有桌面应用，不修改 `vector_body_main.py` 或 PySide6。
 
+> **评委测试登录版使用说明：** 本分支已新增受评者姓名、163统一测试账号和二维码登录入口。启动前必须设置 `VECTORBODY_TEST_PASSWORD`（VectorBody网站专用密码，不是163邮箱密码），公网访问必须使用 HTTPS。PowerShell 完整操作步骤见 [JUDGE_LOCAL_SETUP.md](JUDGE_LOCAL_SETUP.md)。旧报告会自动迁移，不删除评分或照片。共享账号下的数据不对评委彼此隔离。
+
 ## 功能
 
 - **首页**：极简产品入口；暖白、橄榄绿、枫叶黄配色。
