@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 510" role="img" aria-label="人体侧面骨骼示意图">
+<defs><linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8f7f0"/><stop offset="1" stop-color="#e9ede3"/></linearGradient></defs>
+<rect width="330" height="510" fill="url(#paper)" rx="24"/>
+<g stroke="#b6c5aa" stroke-width="1" opacity=".5"><path d="M60 80H270M60 190H270M60 300H270M60 410H270"/><path d="M100 35V460M165 35V460M230 35V460"/></g>
+<g stroke="#4e694f" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke-width="5" d="M157 118Q149 137 150 152Q147 185 164 214Q156 252 154 283L148 318"/>
+  <ellipse cx="164" cy="74" rx="27" ry="37" stroke-width="4" fill="#f6efd9"/>
+  <path d="M184 64l16 4-7 11-14 3M144 83q14 23 30 12" stroke-width="3"/>
+  <path d="M157 119q22 0 25 18l-16 17-22-2M157 134l-22 15" stroke-width="3"/>
+  <path d="M151 148q-22 14-26 39q-2 34 29 59q26-25 29-58q0-26-32-40Z" stroke-width="4" fill="#e5dfc7" fill-opacity=".43"/>
+  <path d="M151 155q28 23 1 84M128 182q42-25 53 10M133 203q37-22 46 7" stroke-width="2" opacity=".7"/>
+  <path d="M170 143l33 62 3 58-14 24M144 147l-25 66 8 52 8 17" stroke-width="9"/>
+  <path d="M192 287l17 3M132 283l19 8" stroke-width="3"/>
+  <path d="M149 284q23 0 38 16l-16 25-31-8q-18-17 9-33Z" stroke-width="4" fill="#e8dfc0"/>
+  <path d="M170 325l44 76-15 67M144 321l-27 86 5 61" stroke-width="12"/>
+  <path d="M199 468l27 5 3 7h-50M121 466l-15 13-29 0" stroke-width="8"/>
+  <path d="M214 401l-31-9M115 407l25-3" stroke-width="4"/>
+</g>
+<g fill="#c6a35d" stroke="#fffef9" stroke-width="3"><circle cx="161" cy="117" r="5"/><circle cx="174" cy="151" r="5"/><circle cx="201" cy="205" r="5"/><circle cx="205" cy="264" r="5"/><circle cx="148" cy="307" r="6"/><circle cx="214" cy="401" r="6"/><circle cx="116" cy="405" r="6"/><circle cx="198" cy="468" r="5"/><circle cx="120" cy="468" r="5"/></g>
+<text x="165" y="497" font-size="11" text-anchor="middle" fill="#798c76" font-family="Arial,sans-serif" letter-spacing="2">LATERAL VIEW · SCHEMATIC</text>
+</svg>

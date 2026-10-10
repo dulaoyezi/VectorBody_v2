@@ -121,3 +121,37 @@ def test_video_must_have_valid_hold_window(app_module,tmp_path):
         assert data['result']['score'] == 82
         assert data['video']['best_time_sec'] >= 2.0
         assert len(client.get('/api/reports').json()['reports']) == 1
+
+def test_new_reports_have_best_frame_photos_and_findings(app_module):
+    with TestClient(app_module.app) as client:
+        started = client.post('/api/live/start', json={'pose':'warrior2','view':'front','level':'normal'}).json()
+        sid = started['session_id']
+        client.post('/api/live/frame', data={'session_id':sid}, files={'frame':('frame.jpg',jpg_frame(),'image/jpeg')})
+        state = app_module._sessions[sid]
+        state.stable_since = app_module.time.monotonic() - 3
+        scored = client.post('/api/live/frame', data={'session_id':sid}, files={'frame':('frame.jpg',jpg_frame(),'image/jpeg')}).json()['result']
+        assert scored['issue_regions'][0]['region'] == 'knees'
+        stopped = client.post('/api/live/stop', data={'session_id':sid,'archive':'true'}).json()
+        rid = stopped['report_id']
+        report = client.get(f'/api/reports/{rid}').json()
+        assert report['body']['media']['original'].endswith('/original')
+        assert report['body']['media']['skeleton'].endswith('/skeleton')
+        for kind in ('original','skeleton'):
+            res = client.get(f'/api/reports/{rid}/photos/{kind}')
+            assert res.status_code == 200
+            assert res.headers['content-type'].startswith('image/jpeg')
+            assert len(res.content) > 1000
+        assert client.get('/api/reports').json()['reports'][0]['has_photo']
+        assert client.delete(f'/api/reports/{rid}').status_code == 200
+        assert not app_module.photos_dir(app_module.DATA, rid).exists()
+        assert client.get(f'/api/reports/{rid}/photos/original').status_code == 404
+
+
+def test_old_reports_without_photos_remain_readable(app_module):
+    with TestClient(app_module.app) as client:
+        rid = app_module.save_report('video', 'warrior2','front','normal', {'score':72,'grade':'B'})
+        report = client.get(f'/api/reports/{rid}').json()
+        assert report['body']['media'] == {}
+        assert client.get('/api/reports').json()['reports'][0]['has_photo'] is False
+        assert client.get(f'/api/reports/{rid}/photos/original').status_code == 404
+        assert client.get('/api/anatomy/side/skeleton').status_code == 404
