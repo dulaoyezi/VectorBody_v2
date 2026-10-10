@@ -241,7 +241,7 @@ def install_shared_access(app: FastAPI, data_dir: Path) -> None:
 
         is_public_api = path in {"/api/health"} or path.startswith("/api/auth/")
         # Visitors must pass the shared test login before seeing the evaluation UI.
-        if path == "/" and not authenticated(request):
+        if path in {"/", "/web/index.html"} and not authenticated(request):
             return RedirectResponse(url="/login", status_code=303)
         if path.startswith("/api/") and not is_public_api and method != "OPTIONS":
             if not authenticated(request):
