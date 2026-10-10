@@ -1,0 +1,10 @@
+.git
+__pycache__
+*.pyc
+*.mp4
+*.mov
+*.avi
+*.mkv
+web_data/
+.venv/
+reports/
