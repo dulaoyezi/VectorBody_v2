@@ -1,0 +1,7 @@
+# Web-only dependencies. Do not install GUI (PySide6/SAPI) requirements on the server.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.9
+numpy==1.26.4
+opencv-contrib-python==4.10.0.84
+mediapipe==0.10.14

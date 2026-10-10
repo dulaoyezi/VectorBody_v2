@@ -1,0 +1,12 @@
+services:
+  vectorbody-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - VECTORBODY_DATA_DIR=/app/reports/web
+    volumes:
+      - ./reports/web:/app/reports/web
+    restart: unless-stopped
