@@ -56,3 +56,27 @@
 @media(max-width:760px){.report-evidence{grid-template-columns:1fr}.archive-photo{height:280px}.anatomy-columns,.anatomy-compact .anatomy-columns,.anatomy-full .anatomy-columns{grid-template-columns:minmax(120px,.8fr) minmax(160px,1fr)}.report-row{grid-template-columns:52px 1fr auto;gap:9px}.report-row .report-action{grid-column:2/-1;justify-self:end}.report-thumb{width:49px;height:50px}.anatomy-switches{align-items:flex-start}.seg-switch button{font-size:10px;padding:6px}.anatomy-figure figcaption{font-size:9px}.detail-body{padding:14px}.evidence-head{padding:12px}}
 @media(max-width:420px){.anatomy-columns,.anatomy-compact .anatomy-columns,.anatomy-full .anatomy-columns{grid-template-columns:1fr}.anatomy-figure{max-width:260px;margin:0 auto;width:100%}.archive-photo{height:245px}}
 @media print{.report-evidence{grid-template-columns:1fr 1fr;gap:10px}.anatomy-evidence,.photo-evidence{break-inside:avoid}.archive-photo{height:265px}.anatomy-switches,.report-evidence button,.anatomy-note{display:none!important}.report-row{grid-template-columns:55px 1fr auto}.detail-body{padding:8px}.report-dims,.report-table-wrap{break-inside:avoid}.evidence-head{border-bottom:1px solid #ddd}.anatomy-columns{grid-template-columns:1fr 1fr}.anatomy-figure{max-width:200px}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
+
+/* Named assessment and shared judge access: keep the original VectorBody palette. */
+.identity-control{margin:0 19px 18px;display:flex;flex-direction:column;gap:8px}
+.identity-control label{font-size:13px;font-weight:750;color:#405a3d}
+.identity-control label span{font-size:11px;font-weight:400;color:#8c9688;margin-left:6px}
+.identity-control input,.report-search input{width:100%;padding:12px 14px;background:#fffefa;border:1px solid #dbe2d5;color:#293e30;border-radius:11px;font:inherit;font-size:13px}
+.identity-control input:focus,.report-search input:focus{outline:2px solid #bdcfb5;outline-offset:1px}
+.login-utility{padding:8px 11px;color:#435e42;background:#e8eee1;border:1px solid #d6e1d0;border-radius:10px;font:700 11px inherit;white-space:nowrap}
+.login-utility:hover{background:#dbe9d3}
+.report-search{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#f9faf5;border:1px solid #e5e9de;border-radius:13px;margin:0 0 18px}
+.report-search label{white-space:nowrap;font-size:12px;color:#576a54;font-weight:700}
+.report-search input{max-width:350px}.report-search button{min-width:76px}
+.judge-modal{position:fixed;inset:0;z-index:300;background:rgba(14,29,16,.62);display:grid;place-items:center;padding:16px}
+.judge-modal[hidden],.judge-modal img[hidden],.judge-modal a[hidden]{display:none!important}
+.judge-dialog{position:relative;max-width:430px;width:100%;background:#fffefa;border:1px solid #e5ebdc;border-radius:21px;padding:32px;text-align:center;box-shadow:0 22px 70px #111e123d}
+.judge-dialog h2{font:700 25px "STSong","Noto Serif SC",serif;color:#283f2e;margin:4px 0 13px}
+.judge-dialog p{font-size:12px;color:#73826f;line-height:1.8}
+.judge-dialog img{max-width:min(260px,100%);width:100%;height:auto;object-fit:contain;margin:10px auto;background:white}
+.judge-dialog a{word-break:break-all;font-size:12px;color:#4b7350;text-decoration:underline}
+.judge-close{position:absolute;right:15px;top:12px;background:transparent;border:0;color:#526852;font-size:28px}
+@media(max-width:950px){.nav-right{gap:6px}.login-utility{padding:8px;font-size:10px}}
+@media(max-width:760px){.nav-right{margin-left:auto}.login-utility{font-size:10px;padding:7px 6px}.report-search{flex-wrap:wrap}.report-search input{flex:1 1 170px;max-width:none}}
+@media print{.report-search,.judge-modal,.login-utility{display:none!important}}
