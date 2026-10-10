@@ -56,6 +56,10 @@ class FakeEngine:
 @pytest.fixture()
 def app_module(tmp_path, monkeypatch):
     monkeypatch.setenv('VECTORBODY_DATA_DIR',str(tmp_path))
+    monkeypatch.setenv('VECTORBODY_TEST_PASSWORD','A_Very_Strong_Demo_Site_Password_123')
+    monkeypatch.setenv('VECTORBODY_COOKIE_SECURE','false')
+    monkeypatch.setenv('VECTORBODY_SHARED_ALLOW_DELETE','true')
+    monkeypatch.delenv('VECTORBODY_PUBLIC_URL',raising=False)
     mp = types.ModuleType('mediapipe')
     mp.solutions = types.SimpleNamespace(pose=types.SimpleNamespace(Pose=FakePose))
     core = types.ModuleType('core'); core.__path__ = []
@@ -79,8 +83,24 @@ def jpg_frame():
     return encoded.tobytes()
 
 
+def login(client):
+    response=client.post('/api/auth/login',json={
+        'email':'huanjiaceshi@163.com',
+        'password':'A_Very_Strong_Demo_Site_Password_123',
+    })
+    assert response.status_code == 200, response.text
+    assert response.cookies.get('vb_test_session')
+    return response
+
+
 def test_index_health_and_no_fabricated_score(app_module):
     with TestClient(app_module.app) as client:
+        assert client.get('/',follow_redirects=False).status_code == 303
+        assert client.get('/login').status_code == 200
+        assert client.get('/api/reports').status_code == 401
+        assert client.get('/api/docs').status_code == 401
+        assert client.get('/api/auth/config').json()['email'] == 'huanjiaceshi@163.com'
+        login(client)
         assert client.get('/').status_code == 200
         assert 'VectorBody' in client.get('/').text
         assert client.get('/api/health').json()['ok'] is True
@@ -90,7 +110,8 @@ def test_index_health_and_no_fabricated_score(app_module):
 
 def test_live_session_stabilizes_then_archives(app_module):
     with TestClient(app_module.app) as client:
-        started=client.post('/api/live/start',json={'pose':'warrior2','view':'front','level':'beginner'})
+        login(client)
+        started=client.post('/api/live/start',json={'pose':'warrior2','view':'front','level':'beginner','student_name':'评委01'})
         assert started.status_code == 200
         sid=started.json()['session_id']
         result=client.post('/api/live/frame',data={'session_id':sid},files={'frame':('test.jpg',jpg_frame(),'image/jpeg')}).json()
@@ -105,6 +126,9 @@ def test_live_session_stabilizes_then_archives(app_module):
         report=client.get('/api/reports/'+rid).json()
         assert report['body']['dimensions']['s1'] == 80
         assert report['source']=='live'
+        assert report['student_name'] == '评委01'
+        assert report['body']['student_name'] == '评委01'
+        assert client.get('/api/reports?student_name='+ '%E8%AF%84%E5%A7%9401').json()['reports'][0]['id'] == rid
         assert client.delete('/api/reports/'+rid).json()['ok'] is True
 
 
@@ -115,16 +139,20 @@ def test_video_must_have_valid_hold_window(app_module,tmp_path):
     for _ in range(110):writer.write(np.full((480,640,3),170,dtype=np.uint8))
     writer.release()
     with TestClient(app_module.app) as client:
-        r=client.post('/api/analyze-video',data={'pose':'warrior2','view':'front','level':'normal'}, files={'file':('sample.avi',path.read_bytes(),'video/x-msvideo')})
+        login(client)
+        r=client.post('/api/analyze-video',data={'pose':'warrior2','view':'front','level':'normal','student_name':'视频测试学生'}, files={'file':('sample.avi',path.read_bytes(),'video/x-msvideo')})
         assert r.status_code == 200, r.text
         data=r.json()
         assert data['result']['score'] == 82
         assert data['video']['best_time_sec'] >= 2.0
-        assert len(client.get('/api/reports').json()['reports']) == 1
+        reports=client.get('/api/reports').json()['reports']
+        assert len(reports) == 1
+        assert reports[0]['student_name'] == '视频测试学生'
 
 def test_new_reports_have_best_frame_photos_and_findings(app_module):
     with TestClient(app_module.app) as client:
-        started = client.post('/api/live/start', json={'pose':'warrior2','view':'front','level':'normal'}).json()
+        login(client)
+        started = client.post('/api/live/start', json={'pose':'warrior2','view':'front','level':'normal','student_name':'照片测试'}).json()
         sid = started['session_id']
         client.post('/api/live/frame', data={'session_id':sid}, files={'frame':('frame.jpg',jpg_frame(),'image/jpeg')})
         state = app_module._sessions[sid]
@@ -149,6 +177,7 @@ def test_new_reports_have_best_frame_photos_and_findings(app_module):
 
 def test_old_reports_without_photos_remain_readable(app_module):
     with TestClient(app_module.app) as client:
+        login(client)
         rid = app_module.save_report('video', 'warrior2','front','normal', {'score':72,'grade':'B'})
         report = client.get(f'/api/reports/{rid}').json()
         assert report['body']['media'] == {}
