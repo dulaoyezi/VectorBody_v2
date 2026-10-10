@@ -26,6 +26,8 @@ from fastapi.responses import FileResponse
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
+from shared_access import install_shared_access
+
 from core.compensation_risk_engine import CompensationRiskEngine
 from core.vector_body_stabilizer import VectorBodyStabilizer
 from report_evidence import build_findings, render_photo, render_skeleton_photo, save_photos, delete_photos, photos_dir
@@ -46,6 +48,8 @@ POSES = {
 ALLOWED_VIDEO = {'.mp4', '.mov', '.avi', '.mkv', '.m4v', '.webm'}
 
 app = FastAPI(title='VectorBody Web', version='1.0.0', docs_url='/api/docs', openapi_url='/api/openapi.json')
+install_shared_access(app, DATA)
+
 allowed = [x.strip() for x in os.getenv('VECTORBODY_CORS_ORIGINS', '').split(',') if x.strip()]
 if allowed:
     app.add_middleware(CORSMiddleware, allow_origins=allowed, allow_methods=['GET', 'POST', 'DELETE'], allow_headers=['*'])
@@ -63,13 +67,27 @@ def init_db():
             id TEXT PRIMARY KEY, created_at TEXT NOT NULL, source TEXT NOT NULL,
             pose TEXT NOT NULL, view TEXT NOT NULL, level TEXT NOT NULL,
             score REAL NOT NULL, grade TEXT NOT NULL, body TEXT NOT NULL)''')
+        # Non-destructive SQLite migration: preserve previous scores and image files.
+        columns = {row['name'] for row in con.execute('PRAGMA table_info(reports)')}
+        if 'student_name' not in columns:
+            con.execute("ALTER TABLE reports ADD COLUMN student_name TEXT NOT NULL DEFAULT ''")
 
 
 init_db()
 
 
+def normalize_student_name(name: str, *, required: bool = False) -> str:
+    name = str(name or '').strip()
+    if len(name) > 32 or any(ord(ch) < 32 or ord(ch) == 127 for ch in name):
+        raise HTTPException(422, '受评者姓名不能超过32字，且不能包含控制字符。')
+    if required and not name:
+        raise HTTPException(422, '请填写受评者姓名或匿名代号。')
+    return name
+
+
 def save_report(source: str, pose: str, view: str, level: str, analysis: dict,
-                photo: bytes | None = None, skeleton_photo: bytes | None = None) -> str:
+                photo: bytes | None = None, skeleton_photo: bytes | None = None,
+                student_name: str = '') -> str:
     """Save a real assessment and its corresponding best-frame photo as one archive.
 
     Old reports without images remain readable. No original video is kept.
@@ -77,12 +95,17 @@ def save_report(source: str, pose: str, view: str, level: str, analysis: dict,
     report_id = uuid.uuid4().hex[:12]
     stamp = datetime.now(timezone.utc).isoformat(timespec='seconds')
     body = dict(analysis)
+    student_name = normalize_student_name(student_name)
+    body['student_name'] = student_name
     try:
         body['media'] = save_photos(DATA, report_id, photo, skeleton_photo)
         with connect_db() as con:
-            con.execute('INSERT INTO reports VALUES(?,?,?,?,?,?,?,?,?)', (
+            con.execute('''INSERT INTO reports
+                (id,created_at,source,pose,view,level,score,grade,body,student_name)
+                VALUES(?,?,?,?,?,?,?,?,?,?)''', (
                 report_id, stamp, source, pose, view, level,
                 float(body['score']), body['grade'], json.dumps(body, ensure_ascii=False),
+                student_name,
             ))
     except Exception:
         delete_photos(DATA, report_id)
@@ -198,6 +221,7 @@ class LiveStart(BaseModel):
     pose: str = 'warrior2'
     view: str = 'front'
     level: str = 'normal'
+    student_name: str = ''
 
 
 class LiveState:
@@ -248,6 +272,7 @@ def poses():
 @app.post('/api/live/start')
 def live_start(opts: LiveStart):
     params_ok(opts.pose, opts.view, opts.level)
+    opts.student_name = normalize_student_name(opts.student_name, required=True)
     with _sessions_lock:
         clean_sessions()
         if len(_sessions) >= MAX_LIVE_SESSIONS:
@@ -337,13 +362,14 @@ def live_stop(session_id: str = Form(...), archive: bool = Form(True)):
     with state.lock:
         try:
             rid = save_report('live', state.opts.pose, state.opts.view, state.opts.level, state.best,
-                              state.best_photo, state.best_skeleton_photo) if archive and state.best else None
+                              state.best_photo, state.best_skeleton_photo,
+                              student_name=state.opts.student_name) if archive and state.best else None
             return {'ok': True, 'archived': bool(rid), 'report_id': rid, 'best': state.best}
         finally:
             state.close()
 
 
-def _analyze_video_file(path: str, pose: str, view: str, level: str):
+def _analyze_video_file(path: str, pose: str, view: str, level: str, student_name: str = ''):
     """CPU-heavy inference runs off the FastAPI event loop."""
     cap = None
     model = None
@@ -396,7 +422,8 @@ def _analyze_video_file(path: str, pose: str, view: str, level: str):
                 best_skeleton_photo = render_skeleton_photo(img, display, result['issue_regions'])
         if best is None:
             raise HTTPException(422, '未找到稳定2秒以上的有效姿态。请确认全身入镜、正侧位和动作选择正确。')
-        rid = save_report('video', pose, view, level, best, best_photo, best_skeleton_photo)
+        rid = save_report('video', pose, view, level, best, best_photo, best_skeleton_photo,
+                          student_name=student_name)
         return {'ok': True, 'report_id': rid,
                 'pose': {'id': pose, 'name': POSES[pose], 'view': view, 'level': level},
                 'result': best,
@@ -414,8 +441,10 @@ def _analyze_video_file(path: str, pose: str, view: str, level: str):
 async def analyze_video(
     file: UploadFile = File(...), pose: str = Form('warrior2'),
     view: str = Form('front'), level: str = Form('normal'),
+    student_name: str = Form(''),
 ):
     params_ok(pose, view, level)
+    student_name = normalize_student_name(student_name, required=True)
     suffix = Path(file.filename or '').suffix.lower()
     if suffix not in ALLOWED_VIDEO:
         raise HTTPException(415, '视频格式不支持，请选择MP4、MOV、AVI、MKV或WebM。')
@@ -429,7 +458,7 @@ async def analyze_video(
                 if total > MAX_UPLOAD_MB * 1024 * 1024:
                     raise HTTPException(413, f'文件不能超过{MAX_UPLOAD_MB}MB。')
                 out.write(chunk)
-        return await run_in_threadpool(_analyze_video_file, path, pose, view, level)
+        return await run_in_threadpool(_analyze_video_file, path, pose, view, level, student_name)
     finally:
         if path and os.path.exists(path):
             os.remove(path)
@@ -437,10 +466,20 @@ async def analyze_video(
 
 
 @app.get('/api/reports')
-def list_reports():
+def list_reports(student_name: str = ''):
+    name_filter = normalize_student_name(student_name)
     with connect_db() as con:
-        rows = con.execute('SELECT id,created_at,source,pose,view,level,score,grade FROM reports ORDER BY created_at DESC LIMIT 100').fetchall()
-    return {'reports': [dict(r) | {'has_photo': (photos_dir(DATA, r['id']) / 'original.jpg').is_file()} for r in rows]}
+        if name_filter:
+            rows = con.execute('''SELECT id,created_at,source,pose,view,level,
+                score,grade,student_name FROM reports WHERE student_name=?
+                ORDER BY created_at DESC LIMIT 100''', (name_filter,)).fetchall()
+        else:
+            rows = con.execute('''SELECT id,created_at,source,pose,view,level,
+                score,grade,student_name FROM reports
+                ORDER BY created_at DESC LIMIT 100''').fetchall()
+    return {'reports': [dict(r) | {
+        'has_photo': (photos_dir(DATA, r['id']) / 'original.jpg').is_file()
+    } for r in rows]}
 
 
 @app.get('/api/reports/{report_id}')
@@ -491,9 +530,14 @@ def anatomy_image(orientation: str, layer: str):
     return FileResponse(path, media_type='image/png')
 
 
+@app.get('/login')
+def login_page():
+    return FileResponse(WEB / 'login.html', headers={'Cache-Control': 'no-store'})
+
+
 @app.get('/')
 def index():
-    return FileResponse(WEB / 'index.html')
+    return FileResponse(WEB / 'index.html', headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/web/{asset_path:path}')
