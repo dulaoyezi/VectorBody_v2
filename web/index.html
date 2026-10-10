@@ -32,7 +32,7 @@
 <header class="nav-bar">
   <a class="brand" href="#home" data-go="home" aria-label="VectorBody 首页"><span class="brand-icon"><span></span></span><span class="brand-text"><strong>VectorBody</strong><small>智能动作感知与评估</small></span></a>
   <nav aria-label="主导航"><button class="nav-link current" data-go="home">首页</button><button class="nav-link" data-go="live">实时评估</button><button class="nav-link" data-go="video">视频评估</button><button class="nav-link" data-go="reports">评估报告</button></nav>
-  <div class="nav-right"><span id="server-dot" class="online-state"><i></i><span>检查服务中</span></span><button id="nav-quick" class="nav-cta" data-go="live">立即体验 <svg><use href="#i-arrow"/></svg></button></div>
+  <div class="nav-right"><span id="server-dot" class="online-state"><i></i><span>检查服务中</span></span><button id="judge-qr-open" class="login-utility" type="button">评委扫码入口</button><button id="account-logout" class="login-utility" type="button">退出登录</button><button id="nav-quick" class="nav-cta" data-go="live">立即体验 <svg><use href="#i-arrow"/></svg></button></div>
 </header>
 <main>
 <section id="page-home" class="page active">
@@ -51,6 +51,7 @@
   <div class="panel stage-panel"><div class="panel-title"><span><svg><use href="#i-camera"/></svg> 实时画面</span><span id="live-status" class="status-tag neutral">尚未开始</span></div>
    <div class="video-stage" id="live-stage"><video id="live-player" autoplay muted playsinline></video><canvas id="live-overlay"></canvas><div class="empty-stage" id="live-empty"><svg><use href="#i-camera"/></svg><strong>准备好开始了吗？</strong><span>摄像头画面仅在评估时发送至本次会话</span></div><span class="stage-hint" id="live-hint">选择体式后开启摄像头</span></div>
    <div class="control-grid"><label>体式<select id="live-pose"></select></label><label>视角<select id="live-view"><option value="front">正位</option><option value="side">侧位</option></select></label><label>训练级别<select id="live-level"><option value="normal">普通</option><option value="beginner">新手</option></select></label></div>
+    <div class="identity-control"><label for="live-student-name">受评者姓名 / 匿名代号 <span>必填 · 计入个人报告</span></label><input id="live-student-name" type="text" required maxlength="32" autocomplete="off" placeholder="例如：张三 / 评委01（不建议使用真实学号）"></div>
    <div class="controls"><button class="btn primary" id="live-toggle"><svg><use href="#i-play"/></svg>开启摄像头评估</button><button class="btn subtle" id="voice-toggle"><svg><use href="#i-volume"/></svg><span>语音已开启</span></button></div>
   </div>
   <div class="panel result-panel"><div class="panel-title"><span><svg><use href="#i-activity"/></svg> 动作评价</span><span id="live-grade" class="status-tag neutral">待检测</span></div>
@@ -69,6 +70,7 @@
  <div class="assessment-grid">
   <div class="panel stage-panel"><div class="panel-title"><span><svg><use href="#i-video"/></svg> 视频输入</span><span class="status-tag neutral" id="upload-badge">未选择文件</span></div><label class="file-drop" id="file-drop"><input type="file" id="video-file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,video/*"><svg><use href="#i-video"/></svg><strong>拖放视频，或点击选择文件</strong><span>支持 MP4、MOV、AVI、MKV、WebM；建议使用H.264编码，完整全身入镜。</span></label><div class="video-stage uploaded-stage" id="uploaded-stage" hidden><video id="uploaded-player" controls playsinline></video><canvas id="uploaded-overlay"></canvas></div>
    <div class="control-grid"><label>体式<select id="video-pose"></select></label><label>视角<select id="video-view"><option value="front">正位</option><option value="side">侧位</option></select></label><label>训练级别<select id="video-level"><option value="normal">普通</option><option value="beginner">新手</option></select></label></div>
+    <div class="identity-control"><label for="video-student-name">受评者姓名 / 匿名代号 <span>必填 · 计入个人报告</span></label><input id="video-student-name" type="text" required maxlength="32" autocomplete="off" placeholder="例如：李四 / 评委02（不建议使用真实学号）"></div>
    <div class="controls"><button class="btn primary" id="analyze-video"><svg><use href="#i-activity"/></svg>开始视频分析</button><span class="subtle-caption" id="upload-info">暂未选择视频</span></div>
   </div>
   <div class="panel result-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 分析结果</span><span class="status-tag neutral" id="video-grade">待分析</span></div>
@@ -83,13 +85,15 @@
 </section>
 
 <section id="page-reports" class="page">
- <div class="page-intro"><div><span class="section-kicker">ASSESSMENT ARCHIVE</span><h2>评估报告与历史记录</h2><p>保存动作成绩、技术诊断与纠正建议，便于后续复核和比较练习表现。</p></div><button class="btn outline" id="refresh-reports"><svg><use href="#i-activity"/></svg>刷新记录</button></div>
+ <div class="page-intro"><div><span class="section-kicker">ASSESSMENT ARCHIVE</span><h2>评估报告与历史记录</h2><p>成绩按受评者姓名归档。统一测试账号中的报告会共享，请使用匿名代号或获得许可的姓名。</p></div><button class="btn outline" id="refresh-reports"><svg><use href="#i-activity"/></svg>刷新记录</button></div>
+ <div class="report-search"><label for="report-name-filter">按受评者姓名查询</label><input id="report-name-filter" maxlength="32" type="search" autocomplete="off" placeholder="留空查看全部报告"><button id="report-search-button" class="btn subtle" type="button">查询</button></div>
  <div class="panel reports-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 评估记录</span><span class="subtle-caption">每份新报告保留最佳帧原图及骨架标注图；不保存完整视频。照片存储于当前服务器</span></div><div id="reports-list" class="report-list"><div class="empty-message">尚无评估记录，先完成一次动作评估。</div></div></div>
  <div id="report-detail" class="panel detail-panel" hidden><div class="panel-title"><span><svg><use href="#i-report"/></svg> 图像证据与完整评估报告</span><button class="btn subtle" id="print-report"><svg><use href="#i-download"/></svg>打印 / 保存PDF</button></div><div id="report-content"></div></div>
 </section>
 </main>
 <footer><span>VECTORBODY 2.0</span><span>以视觉理解动作，以证据支持改进</span><span>教学辅助评估 · 不用于医学诊断</span></footer>
 </div>
+<div class="judge-modal" id="judge-qr-modal" hidden role="dialog" aria-modal="true" aria-labelledby="judge-qr-title"><div class="judge-dialog"><button type="button" id="judge-qr-close" class="judge-close" aria-label="关闭">×</button><h2 id="judge-qr-title">评委扫码访问</h2><p>二维码仅包含 HTTPS 网页地址，不携带登录密码。评委使用统一测试邮箱和你提供的网站测试密码登录。</p><img id="judge-qr-image" alt="VectorBody 网页二维码" hidden><p id="judge-qr-hint">正在读取公网访问地址…</p><a id="judge-public-link" target="_blank" rel="noopener noreferrer" hidden>打开评委访问网址</a></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="/web/app.js" defer></script>
 </body>

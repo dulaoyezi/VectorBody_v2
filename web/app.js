@@ -7,8 +7,8 @@
   const icon = id => `<svg><use href="#i-${id}"></use></svg>`;
   const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   function notify(text){const t=$('toast');t.textContent=String(text);t.classList.add('show');clearTimeout(notify.timer);notify.timer=setTimeout(()=>t.classList.remove('show'),4200)}
-  async function api(path, opts={}){const response=await fetch(path,opts);let body;try{body=await response.json()}catch{body={}}if(!response.ok)throw new Error(typeof body.detail==='string'?body.detail:`请求失败 HTTP ${response.status}`);return body}
-  function navigate(page){if(!['home','live','video','reports'].includes(page))page='home';if(page!== 'live' && state.running)stopLive();state.page=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===`page-${page}`));document.querySelectorAll('.nav-link').forEach(x=>x.classList.toggle('current',x.dataset.go===page));window.history.replaceState({},'',`#${page}`);window.scrollTo({top:0,behavior:'smooth'});if(page==='reports')loadReports()}
+  async function api(path, opts={}){const response=await fetch(path,opts);let body;try{body=await response.json()}catch{body={}}if(response.status===401){window.location.replace('/login');throw new Error('登录已过期，请重新登录。')}if(!response.ok)throw new Error(typeof body.detail==='string'?body.detail:`请求失败 HTTP ${response.status}`);return body}
+  function navigate(page){if(!['home','live','video','reports'].includes(page))page='home';const saving=(page!=='live'&&state.running)?stopLive():null;state.page=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===`page-${page}`));document.querySelectorAll('.nav-link').forEach(x=>x.classList.toggle('current',x.dataset.go===page));window.history.replaceState({},'',`#${page}`);window.scrollTo({top:0,behavior:'smooth'});if(page==='reports'){loadReports();if(saving)saving.finally(()=>{if(state.page==='reports')loadReports()})}}
   document.querySelectorAll('[data-go]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault();navigate(btn.dataset.go)}));
   for(const id of ['live-pose','video-pose'])$(id).innerHTML=Object.entries(POSE_NAMES).map(([k,v])=>`<option value="${k}" ${k==='warrior2'?'selected':''}>${v}</option>`).join('');
   async function health(){try{await api('/api/health');$('server-dot').className='online-state online';$('server-dot').lastElementChild.textContent='引擎已就绪'}catch{$('server-dot').className='online-state offline';$('server-dot').lastElementChild.textContent='服务不可用'}}
@@ -77,9 +77,11 @@
   $('voice-toggle').addEventListener('click',()=>{state.voice=!state.voice;$('voice-toggle').querySelector('span').textContent=state.voice?'语音已开启':'语音已关闭';if(!state.voice&&window.speechSynthesis)window.speechSynthesis.cancel()});
   function phaseUI(phase){const idx=phase==='prepare'||phase==='framing'||phase==='centering'?0:phase==='stabilizing'?1:phase==='hold'?2:0;document.querySelectorAll('#phase-flow span').forEach((x,i)=>x.classList.toggle('on',i===idx));$('live-status').textContent=({prepare:'动作准备',framing:'调整入镜',centering:'调整位置',stabilizing:'稳定确认',hold:'正式评分'})[phase]||'进行中';$('live-status').className='status-tag'}
   async function startLive(){try{
+    const studentName=$('live-student-name').value.trim();
+    if(!studentName){$('live-student-name').focus();throw new Error('请先填写受评者姓名或匿名代号。')}
     if(!navigator.mediaDevices?.getUserMedia){throw new Error('请通过HTTPS或localhost访问，并允许浏览器使用摄像头。')}
     const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});state.stream=stream;$('live-player').srcObject=stream;await $('live-player').play();
-    const started=await api('/api/live/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose:$('live-pose').value,view:$('live-view').value,level:$('live-level').value})});state.session=started.session_id;state.running=true;state.lastPhase='prepare';state.lastScore=null;state.lastLive=null;state.firstResultSpoken=false;state.lastSpeak=0;$('live-empty').hidden=true;$('live-empty').style.display='none';$('live-toggle').innerHTML=`${icon('check')}完成评估并存档`;$('live-hint').textContent=started.message;phaseUI('prepare');speech(started.voice,true);state.timer=setInterval(captureFrame,320);notify('摄像头已开启，动作稳定约2秒后自动开始评分。');
+    const started=await api('/api/live/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose:$('live-pose').value,view:$('live-view').value,level:$('live-level').value,student_name:studentName})});state.session=started.session_id;state.running=true;state.lastPhase='prepare';state.lastScore=null;state.lastLive=null;state.firstResultSpoken=false;state.lastSpeak=0;$('live-empty').hidden=true;$('live-empty').style.display='none';$('live-toggle').innerHTML=`${icon('check')}完成评估并存档`;$('live-hint').textContent=started.message;phaseUI('prepare');speech(started.voice,true);state.timer=setInterval(captureFrame,320);notify('摄像头已开启，动作稳定约2秒后自动开始评分。');
   }catch(e){notify(e.message);if(state.stream){state.stream.getTracks().forEach(t=>t.stop());state.stream=null}}}
   const grab=document.createElement('canvas');
   async function captureFrame(){if(!state.running||state.busy||!state.session)return;const video=$('live-player');if(!video.videoWidth)return;state.busy=true;try{grab.width=video.videoWidth;grab.height=video.videoHeight;grab.getContext('2d').drawImage(video,0,0,grab.width,grab.height);const blob=await new Promise(resolve=>grab.toBlob(resolve,'image/jpeg',.76));if(!blob)return;const form=new FormData();form.append('session_id',state.session);form.append('frame',blob,'camera.jpg');const data=await api('/api/live/frame',{method:'POST',body:form});$('live-hint').textContent=data.message;phaseUI(data.phase);drawSkeleton($('live-overlay'),video,data.landmarks);
@@ -90,29 +92,53 @@
   $('live-toggle').addEventListener('click',()=>state.running?stopLive():startLive());
   function acceptFile(file){if(!file)return;state.videoFile=file;$('upload-info').textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;$('upload-badge').textContent='视频已选择';$('uploaded-stage').hidden=false;$('file-drop').style.display='none';const player=$('uploaded-player');if(player.src?.startsWith('blob:'))URL.revokeObjectURL(player.src);player.src=URL.createObjectURL(file);$('show-video-report').disabled=true}
   $('video-file').addEventListener('change',e=>acceptFile(e.target.files?.[0]));const zone=$('file-drop');zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag')});zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');acceptFile(e.dataTransfer?.files?.[0])});
-  $('analyze-video').addEventListener('click',async()=>{if(!state.videoFile){notify('请先选择待分析视频。');return}const btn=$('analyze-video');btn.disabled=true;btn.textContent='正在执行逐帧视觉分析…';try{const fd=new FormData();fd.append('file',state.videoFile);fd.append('pose',$('video-pose').value);fd.append('view',$('video-view').value);fd.append('level',$('video-level').value);const data=await api('/api/analyze-video',{method:'POST',body:fd});state.lastVideo=data;resultUI('video',data.result);$('best-time').textContent=`${data.video.best_time_sec}s`;$('valid-frames').textContent=data.video.evaluated_frames;$('show-video-report').disabled=false;$('video-risk').textContent=`${Math.round(data.result.risk_pct)}%`;const player=$('uploaded-player');player.currentTime=data.video.best_time_sec;player.addEventListener('seeked',()=>drawSkeleton($('uploaded-overlay'),player,data.result.landmarks),{once:true});notify('已使用VectorBody核心算法完成视频评估并归档。')}catch(e){notify(`分析失败：${e.message}`)}finally{btn.disabled=false;btn.innerHTML=`${icon('activity')}开始视频分析`}});
+  $('analyze-video').addEventListener('click',async()=>{if(!state.videoFile){notify('请先选择待分析视频。');return}const studentName=$('video-student-name').value.trim();if(!studentName){notify('请填写受评者姓名或匿名代号。');$('video-student-name').focus();return}const btn=$('analyze-video');btn.disabled=true;btn.textContent='正在执行逐帧视觉分析…';try{const fd=new FormData();fd.append('file',state.videoFile);fd.append('pose',$('video-pose').value);fd.append('view',$('video-view').value);fd.append('level',$('video-level').value);fd.append('student_name',studentName);const data=await api('/api/analyze-video',{method:'POST',body:fd});state.lastVideo=data;resultUI('video',data.result);$('best-time').textContent=`${data.video.best_time_sec}s`;$('valid-frames').textContent=data.video.evaluated_frames;$('show-video-report').disabled=false;$('video-risk').textContent=`${Math.round(data.result.risk_pct)}%`;const player=$('uploaded-player');player.addEventListener('seeked',()=>drawSkeleton($('uploaded-overlay'),player,data.result.landmarks),{once:true});player.currentTime=data.video.best_time_sec;notify('已使用VectorBody核心算法完成视频评估并归档。')}catch(e){notify(`分析失败：${e.message}`)}finally{btn.disabled=false;btn.innerHTML=`${icon('activity')}开始视频分析`}});
   $('show-video-report').addEventListener('click',async()=>{navigate('reports');if(state.lastVideo?.report_id)await openReport(state.lastVideo.report_id)});
   async function loadReports(){
     const box=$('reports-list');box.innerHTML='<div class="empty-message">正在加载记录…</div>';
     try{
-      const data=await api('/api/reports');
+      const filter=$('report-name-filter').value.trim();
+      const data=await api('/api/reports'+(filter?'?student_name='+encodeURIComponent(filter):''));
       if(!data.reports?.length){box.innerHTML='<div class="empty-message">还没有记录。完成一次动作评估后，将自动保存在这里。</div>';return}
       box.innerHTML=data.reports.map(r=>`<div class="report-row">
         <div class="report-thumb">${r.has_photo?`<img alt="档案最佳帧" loading="lazy" src="/api/reports/${encodeURIComponent(r.id)}/photos/original">`:icon('image')}</div>
-        <div class="report-name">${esc(POSE_NAMES[r.pose]||r.pose)} · ${r.source==='live'?'实时评估':'视频评估'}<small>${esc(new Date(r.created_at).toLocaleString())} · ${r.view==='front'?'正位':'侧位'} · ${r.level==='beginner'?'新手':'普通'}</small></div>
+        <div class="report-name">${esc(r.student_name||'未填写姓名')} · ${esc(POSE_NAMES[r.pose]||r.pose)} · ${r.source==='live'?'实时评估':'视频评估'}<small>${esc(new Date(r.created_at).toLocaleString())} · ${r.view==='front'?'正位':'侧位'} · ${r.level==='beginner'?'新手':'普通'}</small></div>
         <strong class="report-score">${Math.round(r.score)}分</strong><button class="report-action" data-report="${esc(r.id)}">查看报告 →</button></div>`).join('');
       box.querySelectorAll('[data-report]').forEach(b=>b.addEventListener('click',()=>openReport(b.dataset.report)));
     }catch(e){box.innerHTML=`<div class="empty-message">加载失败：${esc(e.message)}</div>`}
   }
   $('refresh-reports').addEventListener('click',loadReports);
+  $('report-search-button').addEventListener('click',loadReports);
+  $('report-name-filter').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadReports()}});
+  $('account-logout').addEventListener('click',async()=>{
+    if(state.running){notify('请先结束实时评估，再退出。');return;}
+    try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});}
+    finally{window.location.replace('/login');}
+  });
+  $('judge-qr-open').addEventListener('click',async()=>{
+    const modal=$('judge-qr-modal'),hint=$('judge-qr-hint'),img=$('judge-qr-image'),link=$('judge-public-link');
+    modal.hidden=false;img.hidden=true;link.hidden=true;hint.textContent='正在获取公网二维码…';
+    try{
+      const cfg=await api('/api/auth/config');
+      if(!cfg.qr_enabled||!cfg.public_url){hint.textContent='尚未设置公网 HTTPS 地址。请先配置 VECTORBODY_PUBLIC_URL 并重启服务。';return;}
+      img.onload=()=>{hint.textContent='使用手机扫码，进入同一个测试账号登录页面。';};
+      img.onerror=()=>{hint.textContent='二维码加载失败，请检查网络与服务配置。';};
+      img.src='/api/auth/qr';
+      img.hidden=false;
+      link.href=cfg.public_url+'/';link.textContent=cfg.public_url;link.hidden=false;
+    }catch(e){hint.textContent='二维码加载失败：'+e.message;}
+  });
+  $('judge-qr-close').addEventListener('click',()=>{$('judge-qr-modal').hidden=true;});
+  $('judge-qr-modal').addEventListener('click',e=>{if(e.target===$('judge-qr-modal'))$('judge-qr-modal').hidden=true;});
+  window.addEventListener('keydown',e=>{if(e.key==='Escape')$('judge-qr-modal').hidden=true;});
   async function openReport(id){
     try{
       const data=await api('/api/reports/'+encodeURIComponent(id));state.lastReport=data;const r=data.body;
       const rows=Object.entries(r.metrics||{}).map(([key,item])=>`<tr><td>${esc(key)}</td><td>${esc(item.value)}</td><td>${esc(item.score)}</td><td>${esc(item.stability)}</td><td>${esc(item.weight)}</td></tr>`).join('');
-      const meta=`${esc(new Date(data.created_at).toLocaleString())} · ${data.view==='front'?'正位采集':'侧位采集'} · ${data.level==='beginner'?'新手':'普通'} · ${esc(data.id)}`;
+      const meta=`受评者 ${esc(data.student_name||r.student_name||'未填写姓名')} · ${esc(new Date(data.created_at).toLocaleString())} · ${data.view==='front'?'正位采集':'侧位采集'} · ${data.level==='beginner'?'新手':'普通'} · ${esc(data.id)}`;
       $('report-content').innerHTML=`<div class="detail-body">
         <div class="detail-head"><div><span class="report-kicker">MOVEMENT EVIDENCE REPORT</span>
-          <h3>${esc(POSE_NAMES[data.pose]||data.pose)} · ${data.source==='live'?'实时评估':'视频评估'}</h3><p>${meta}</p></div><strong>${Math.round(r.score)} <small>/ 100</small></strong></div>
+          <h3>${esc(data.student_name||r.student_name||'未填写姓名')} · ${esc(POSE_NAMES[data.pose]||data.pose)} · ${data.source==='live'?'实时评估':'视频评估'}</h3><p>${meta}</p></div><strong>${Math.round(r.score)} <small>/ 100</small></strong></div>
         <div class="report-evidence">
           <article class="evidence-card photo-evidence"><div class="evidence-head"><div>${icon('image')}<strong>最佳评分帧 · 档案照片</strong></div><div class="seg-switch"><button type="button" data-photo-type="original" class="selected">原始照片</button><button type="button" data-photo-type="skeleton">骨架标注</button></div></div>
              <figure class="archive-photo"><img id="archive-photo" alt="最佳评分帧" loading="eager"><div class="archive-photo-empty" id="archive-photo-empty" hidden>没有归档照片</div></figure>
@@ -129,7 +155,8 @@
       $('report-detail').scrollIntoView({behavior:'smooth',block:'start'});
     }catch(e){notify('无法打开报告：'+e.message)}
   }
-  $('print-report').addEventListener('click',()=>window.print());
+  $('print-report').addEventListener('click',()=>{if(!state.lastReport){notify('请先打开一份评估报告。');return;}document.querySelectorAll('#report-detail details').forEach(x=>x.open=true);const name=(state.lastReport.student_name||'未填写姓名').replace(/[\\/:*?"<>|]/g,'_');document.title='VectorBody_评估报告_'+name;window.print();});
+  window.addEventListener('afterprint',()=>{document.title='VectorBody — 科学地理解每一次动作';});
   window.addEventListener('beforeunload',()=>{if(state.stream)state.stream.getTracks().forEach(t=>t.stop())});
   window.addEventListener('resize',()=>{if(state.running&&state.lastLive)drawSkeleton($('live-overlay'),$('live-player'),state.lastLive.landmarks)});
   health();navigate((location.hash||'#home').slice(1));
