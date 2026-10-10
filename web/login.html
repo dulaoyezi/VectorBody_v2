@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f6f0">
+  <title>评委登录 · VectorBody 2.0</title>
+  <style>
+    :root{color-scheme:light;font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;color:#273c2e;background:#f8f6f0}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:26px;background:radial-gradient(circle at 75% 12%,#dce9d2 0,transparent 38%),#f8f6f0}
+    .layout{width:min(100%,920px);display:grid;grid-template-columns:1.04fr .96fr;border:1px solid #e2e8d9;box-shadow:0 24px 75px #263b2d17;background:#fffefa;border-radius:25px;overflow:hidden}
+    .intro{background:linear-gradient(145deg,#25432e,#637a52);padding:52px 44px;color:#fffefa;display:flex;flex-direction:column;justify-content:space-between;min-height:500px}
+    .mark{letter-spacing:.08em;font-weight:800;font-size:24px}.mark span{display:block;font-size:10px;letter-spacing:.24em;font-weight:500;margin-top:8px;color:#d0dfc8}
+    h1{font:700 clamp(30px,3.2vw,42px)/1.4 "STSong","Noto Serif SC",serif;margin:35px 0 18px}
+    .intro p{font-size:14px;line-height:2;color:#e0ebda;max-width:335px}.intro small{color:#d0dfc8;font-size:11px;line-height:1.8}
+    .panel{padding:55px 45px 42px}h2{font-size:24px;margin:0 0 9px}.sub{font-size:13px;color:#7d8978;line-height:1.8;margin:0 0 32px}
+    label{display:block;font-size:13px;font-weight:700;margin:17px 0 8px}input{display:block;width:100%;border:1px solid #d9e2d4;border-radius:12px;padding:13px 14px;font-size:15px;color:#293c2d;background:#fdfdfa;outline:none}
+    input:focus{border-color:#789666;box-shadow:0 0 0 3px #e8eee3}input[readonly]{background:#f0f3ec;color:#66775e}
+    button{width:100%;margin-top:24px;background:#607b54;color:white;border:0;border-radius:12px;cursor:pointer;padding:14px;font-size:14px;font-weight:750}
+    button:disabled{opacity:.55;cursor:wait}#error{min-height:22px;margin:13px 0 0;color:#a33b2c;font-size:12px;line-height:1.7}
+    .hint{font-size:11px;color:#839080;line-height:1.8;margin-top:22px}
+    .qr{margin-top:22px;padding:15px;border:1px dashed #cbd9c6;border-radius:13px;display:flex;align-items:center;gap:15px}
+    .qr[hidden]{display:none}.qr img{width:92px;height:92px;background:white;object-fit:contain}.qr strong{font-size:12px}.qr p{margin:5px 0 0;font-size:11px;line-height:1.6;color:#81907e}
+    @media(max-width:720px){.layout{grid-template-columns:1fr}.intro{min-height:0;padding:30px}.intro h1{margin:22px 0 8px}.intro small{display:none}.panel{padding:34px 28px}}
+  </style>
+  <script src="/web/login.js" defer></script>
+</head>
+<body>
+  <main class="layout">
+    <section class="intro">
+      <div class="mark">VECTORBODY 2.0 <span>HUMAN MOTION INTELLIGENCE</span></div>
+      <div><h1>让每一次练习，<br>都有据可循。</h1><p>欢迎体验可解释视觉 AI 瑜伽动作评估。登录后可使用摄像头、视频分析和多维报告。</p></div>
+      <small>基于 Python · MediaPipe · 人体拓扑树 · DLS-IK<br>教学辅助用途，不用于医疗诊断。</small>
+    </section>
+    <section class="panel">
+      <h2>评委测试登录</h2>
+      <p class="sub">使用统一测试账号访问系统。评估时请填写受评者姓名或匿名代号，便于区分报告。</p>
+      <form id="login-form">
+        <label for="email">测试账号（163邮箱）</label>
+        <input type="email" id="email" value="huanjiaceshi@163.com" readonly autocomplete="username">
+        <label for="password">VectorBody 系统测试密码</label>
+        <input type="password" id="password" minlength="12" maxlength="256" required autocomplete="current-password" placeholder="请输入评委测试密码">
+        <button type="submit" id="login-button">登录并进入评估系统</button>
+        <p id="error" role="alert" aria-live="polite"></p>
+      </form>
+      <div class="qr" id="qr-box" hidden>
+        <img alt="VectorBody 评委扫码访问二维码" id="qr-image">
+        <div><strong>手机扫码访问</strong><p>二维码只包含访问网址，不包含登录密码。请通过 HTTPS 打开。</p></div>
+      </div>
+      <p class="hint">这是网站的独立测试密码，不是163邮箱密码。测试账号下的报告由本次评审参与者共享，请使用获得授权的测试视频或匿名代号。</p>
+    </section>
+  </main>
+</body>
+</html>
