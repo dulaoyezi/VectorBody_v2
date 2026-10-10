@@ -50,3 +50,13 @@ Render 之外的 Docker 主机也可使用本文件。若采用多进程/多实�
 - 问题部位源于当前动作的分项评分和规则提示。它是运动学习辅助信息，不是病患诊断，无法识别确切损伤，也不会凭一个摄像机画面确定左右肢体病理。
 - 浏览器语音替代 Windows SAPI；网页中的解剖视图展示为示意，不直接显示肌肉真实受力。
 - 未在本执行环境完成真实 MediaPipe 运行/公网压力测试前，不应声称已经完成生产验收。
+## 将网站部署到公网（Render）
+
+1. 登录 https://dashboard.render.com ，连接 GitHub 账号并授权访问本仓库。
+2. 选择 **New → Blueprint**，选择 `dulaoyezi/VectorBody_v2` 的 `main` 分支及根目录的 `render.yaml`。
+3. 查看资源和费用后再确认部署。当前 Blueprint 默认 `plan: starter`（512 MB，性能可能不足以运行 MediaPipe 持续推理）；如果有内存不足或响应缓慢，优先评估 1 CPU / 2 GB 方案（`1c-2g`）并实测负载。持久磁盘会产生额外费用。
+4. 等待 Build/Deploy 成功，验证平台提供的 `https://<service-name>.onrender.com/api/health` 能返回 `ok: true`，并用浏览器真实上传视频测试。
+5. 视频实时评估需要 **HTTPS** 和用户授予浏览器摄像头权限。Render 只运行服务器推理，访问者的摄像头在访问者自己设备上采集；不是用服务器摄像头。
+6. 公网访问之前：**当前版本报告列表、详情、照片和删除接口没有用户鉴权**。严禁公开真实个人影像与未授权视频；应先加入账号登录、报告所有权隔离、访问控制、限流、删除及隐私授权机制。只用于限范围评审演示时，应使用虚构或授权的匿名样例，并限制访问范围。
+
+Render 首次部署后的 URL 由平台创建，不应在实际成功前假定固定域名。Render 配置详见 https://render.com/docs/infrastructure-as-code 。
