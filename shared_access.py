@@ -18,7 +18,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, RedirectResponse
 from pydantic import BaseModel, Field
 
 COOKIE_NAME = "vb_test_session"
@@ -48,9 +48,15 @@ def install_shared_access(app: FastAPI, data_dir: Path) -> None:
         raise RuntimeError(
             "设置至少12位的 VECTORBODY_TEST_PASSWORD（VectorBody专用密码，不能是163邮箱密码）。"
         )
-    password_digest = _digest(password)
-    secure_cookie = _truthy(os.getenv("VECTORBODY_COOKIE_SECURE", "true"))
+    # PBKDF2 avoids storing or logging the raw website password.
+    salt = hashlib.sha256(("VectorBody shared login:" + email).encode("utf-8")).digest()
+    password_digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 180_000)
     public_url = os.getenv("VECTORBODY_PUBLIC_URL", "").strip().rstrip("/")
+    secure_cookie = _truthy(os.getenv(
+        "VECTORBODY_COOKIE_SECURE", "true" if public_url else "false"
+    ))
+    if public_url and not secure_cookie:
+        raise RuntimeError("公网 HTTPS 登录必须启用安全 Cookie；请删除 VECTORBODY_COOKIE_SECURE=false。")
     if public_url:
         parsed = urlsplit(public_url)
         if (
@@ -153,7 +159,9 @@ def install_shared_access(app: FastAPI, data_dir: Path) -> None:
         source = source_key(request)
         if not login_attempt_allowed(source, now):
             raise HTTPException(status_code=429, detail="登录尝试过多，请15分钟后再试。")
-        supplied = _digest(data.password)
+        supplied = hashlib.pbkdf2_hmac(
+            "sha256", data.password.encode("utf-8"), salt, 180_000
+        )
         good_password = hmac.compare_digest(supplied, password_digest)
         good_email = hmac.compare_digest(data.email.strip().casefold(), email)
         if not (good_email and good_password):
@@ -219,6 +227,8 @@ def install_shared_access(app: FastAPI, data_dir: Path) -> None:
         method = request.method
         # Reject cross-origin writes even if the user is already authenticated.
         if method not in {"GET", "HEAD", "OPTIONS"} and path.startswith("/api/"):
+            if request.headers.get("sec-fetch-site") == "cross-site":
+                return JSONResponse({"detail": "禁止跨站提交请求。"}, status_code=403)
             origin = request.headers.get("origin")
             if origin:
                 origin_host = urlsplit(origin).netloc.casefold()
@@ -230,6 +240,9 @@ def install_shared_access(app: FastAPI, data_dir: Path) -> None:
                     )
 
         is_public_api = path in {"/api/health"} or path.startswith("/api/auth/")
+        # Visitors must pass the shared test login before seeing the evaluation UI.
+        if path == "/" and not authenticated(request):
+            return RedirectResponse(url="/login", status_code=303)
         if path.startswith("/api/") and not is_public_api and method != "OPTIONS":
             if not authenticated(request):
                 return JSONResponse(
