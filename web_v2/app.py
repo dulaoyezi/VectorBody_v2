@@ -337,6 +337,9 @@ async def assess(ws: WebSocket):
                 continue
             if phase == "advice" and now >= advice_until:
                 phase, stable_since = "reassess", None
+                await ws.send_json({"phase": phase, "message": "开始再次评估，请保持动作稳定",
+                                    "landmarks": item["landmarks"]})
+                continue
             if item["movement"] > 0.025:
                 stable_since = None
             if stable_since is None:
