@@ -184,3 +184,110 @@ def test_old_reports_without_photos_remain_readable(app_module):
         assert client.get('/api/reports').json()['reports'][0]['has_photo'] is False
         assert client.get(f'/api/reports/{rid}/photos/original').status_code == 404
         assert client.get('/api/anatomy/side/skeleton').status_code == 404
+
+def test_reviewer_login_protects_reports_and_supports_logout(app_module, monkeypatch):
+    with TestClient(app_module.app) as client:
+        assert client.get('/api/reports/unknown').status_code == 401
+        assert client.get('/api/reports/unknown/photos/original').status_code == 401
+        assert client.post('/api/live/start',json={'student_name':'测试'}).status_code == 401
+        invalid=client.post('/api/auth/login',json={
+            'email':'huanjiaceshi@163.com','password':'Wrong_password_12345'
+        })
+        assert invalid.status_code == 401
+        cross=client.post('/api/auth/login',headers={'Origin':'https://evil.example'},json={
+            'email':'huanjiaceshi@163.com',
+            'password':'A_Very_Strong_Demo_Site_Password_123'
+        })
+        assert cross.status_code == 403
+        login(client)
+        rid=app_module.save_report('video','warrior2','front','normal',
+                                   {'score':81,'grade':'B'},student_name='评委A')
+        assert client.get('/api/reports/'+rid).json()['student_name'] == '评委A'
+        monkeypatch.setenv('VECTORBODY_SHARED_ALLOW_DELETE','false')
+        assert client.delete('/api/reports/'+rid).status_code == 403
+        assert client.get('/api/reports/'+rid).status_code == 200
+        assert client.post('/api/auth/logout').status_code == 200
+        assert client.get('/api/reports').status_code == 401
+        assert client.get('/',follow_redirects=False).status_code == 303
+
+
+def test_name_required_and_report_search_is_exact(app_module):
+    with TestClient(app_module.app) as client:
+        login(client)
+        assert client.post('/api/live/start',json={
+            'pose':'warrior2','view':'front','level':'normal'
+        }).status_code == 422
+        assert client.post('/api/live/start',json={
+            'pose':'warrior2','view':'front','level':'normal',
+            'student_name':'a'*33
+        }).status_code == 422
+        assert client.post('/api/analyze-video',data={
+            'student_name':'  '
+        }).status_code == 422
+        r1=app_module.save_report('video','warrior2','front','normal',
+                                  {'score':70,'grade':'B'},student_name='评委A')
+        r2=app_module.save_report('video','warrior2','front','normal',
+                                  {'score':90,'grade':'A'},student_name='评委B')
+        result=client.get('/api/reports',params={'student_name':'评委A'}).json()['reports']
+        assert [r['id'] for r in result] == [r1]
+        result=client.get('/api/reports',params={'student_name':'评委B'}).json()['reports']
+        assert [r['id'] for r in result] == [r2]
+        report=client.get('/api/reports/'+r2).json()
+        assert report['body']['student_name'] == '评委B'
+        html=client.get('/').text
+        assert 'id="live-student-name"' in html
+        assert 'id="video-student-name"' in html
+        assert 'id="report-name-filter"' in html
+        assert 'id="judge-qr-open"' in html
+
+
+def test_legacy_sqlite_is_migrated_without_erasing_report(app_module, tmp_path):
+    import json
+    import sqlite3
+    old_db=tmp_path/'original_reports.sqlite3'
+    with sqlite3.connect(old_db) as c:
+        c.execute("""CREATE TABLE reports(
+            id TEXT PRIMARY KEY, created_at TEXT NOT NULL, source TEXT NOT NULL,
+            pose TEXT NOT NULL, view TEXT NOT NULL, level TEXT NOT NULL,
+            score REAL NOT NULL, grade TEXT NOT NULL, body TEXT NOT NULL
+        )""")
+        c.execute('INSERT INTO reports VALUES(?,?,?,?,?,?,?,?,?)',(
+            'legacy001','2026-01-01T00:00:00+00:00','video','warrior2',
+            'front','normal',75.0,'B',json.dumps({'score':75,'grade':'B'})
+        ))
+    original_db=app_module.DB
+    try:
+        app_module.DB=old_db
+        app_module.init_db()
+        app_module.init_db()  # Migration is idempotent.
+        with app_module.connect_db() as c:
+            columns=[r['name'] for r in c.execute('PRAGMA table_info(reports)')]
+            legacy=c.execute('SELECT id,student_name,score,body FROM reports').fetchone()
+            assert 'student_name' in columns
+            assert legacy['id'] == 'legacy001'
+            assert legacy['student_name'] == ''
+            assert legacy['score'] == 75
+            assert json.loads(legacy['body'])['score'] == 75
+    finally:
+        app_module.DB=original_db
+
+
+def test_qr_encodes_only_public_https_login_link(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from shared_access import install_shared_access
+    monkeypatch.setenv('VECTORBODY_TEST_PASSWORD','A_Very_Strong_Demo_Site_Password_123')
+    monkeypatch.setenv('VECTORBODY_PUBLIC_URL','https://vectorbody.example.test')
+    monkeypatch.delenv('VECTORBODY_COOKIE_SECURE',raising=False)
+    app=FastAPI()
+    install_shared_access(app,tmp_path)
+    with TestClient(app,base_url='https://vectorbody.example.test') as client:
+        cfg=client.get('/api/auth/config').json()
+        assert cfg['email'] == 'huanjiaceshi@163.com'
+        assert cfg['public_url'] == 'https://vectorbody.example.test'
+        response=client.get('/api/auth/qr')
+        assert response.status_code == 200
+        assert response.headers['content-type'].startswith('image/png')
+        assert response.content.startswith(b'\\x89PNG\\r\\n\\x1a\\n')
+        assert b'A_Very_Strong_Demo_Site_Password_123' not in response.content
+        login(client)
+        assert client.get('/api/auth/me').json()['shared_account'] is True
