@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 from core.compensation_risk_engine import CompensationRiskEngine
 from core.vector_body_stabilizer import VectorBodyStabilizer
+from report_evidence import build_findings, render_photo, render_skeleton_photo, save_photos, delete_photos, photos_dir
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / 'web'
@@ -67,14 +68,25 @@ def init_db():
 init_db()
 
 
-def save_report(source: str, pose: str, view: str, level: str, analysis: dict) -> str:
+def save_report(source: str, pose: str, view: str, level: str, analysis: dict,
+                photo: bytes | None = None, skeleton_photo: bytes | None = None) -> str:
+    """Save a real assessment and its corresponding best-frame photo as one archive.
+
+    Old reports without images remain readable. No original video is kept.
+    """
     report_id = uuid.uuid4().hex[:12]
     stamp = datetime.now(timezone.utc).isoformat(timespec='seconds')
-    with connect_db() as con:
-        con.execute('INSERT INTO reports VALUES(?,?,?,?,?,?,?,?,?)', (
-            report_id, stamp, source, pose, view, level,
-            float(analysis['score']), analysis['grade'], json.dumps(analysis, ensure_ascii=False),
-        ))
+    body = dict(analysis)
+    try:
+        body['media'] = save_photos(DATA, report_id, photo, skeleton_photo)
+        with connect_db() as con:
+            con.execute('INSERT INTO reports VALUES(?,?,?,?,?,?,?,?,?)', (
+                report_id, stamp, source, pose, view, level,
+                float(body['score']), body['grade'], json.dumps(body, ensure_ascii=False),
+            ))
+    except Exception:
+        delete_photos(DATA, report_id)
+        raise
     return report_id
 
 
@@ -128,7 +140,7 @@ def center_point(display):
     ], dtype=float)
 
 
-def make_result(analysis, display, frame_index=None, time_sec=None):
+def make_result(analysis, display, frame_index=None, time_sec=None, action_tag=None, level="normal"):
     risk, score, grade, voice, metrics, detail, metric_scores = analysis
     def number(value, nd=2):
         return round(float(value), nd)
@@ -163,6 +175,7 @@ def make_result(analysis, display, frame_index=None, time_sec=None):
             k: {name: number(v.get(name, 0), 3) for name in ('value', 'score', 'stability', 'weight')}
             for k, v in metric_scores.items()
         },
+        'issue_regions': build_findings(metric_scores, action_tag, level),
         'landmarks': display, 'frame_index': frame_index, 'time_sec': time_sec,
     }
 
@@ -197,6 +210,8 @@ class LiveState:
         self.stable_since = None
         self.last_seen = time.monotonic()
         self.best = None
+        self.best_photo = None
+        self.best_skeleton_photo = None
         self.frame_index = 0
         self.ready_at = None
 
@@ -302,10 +317,13 @@ async def live_frame(session_id: str = Form(...), frame: UploadFile = File(...))
         smooth = state.smoother.smooth(pose_data)
         analyzed = state.engine.analyze(smooth, f'{state.opts.pose}_{state.opts.view}')
         if analyzed is not None:
-            result = make_result(analyzed, display, state.frame_index, round(now - (state.ready_at or now), 2))
+            result = make_result(analyzed, display, state.frame_index, round(now - (state.ready_at or now), 2),
+                                 f'{state.opts.pose}_{state.opts.view}', state.opts.level)
             response['result'] = result
             if state.best is None or result['score'] > state.best['score']:
                 state.best = result
+                state.best_photo = render_photo(img)
+                state.best_skeleton_photo = render_skeleton_photo(img, display, result['issue_regions'])
         response.update(phase='hold', message='正在检测 · 调整后继续保持即可重新评价', best=state.best)
         return response
 
@@ -318,7 +336,8 @@ def live_stop(session_id: str = Form(...), archive: bool = Form(True)):
         return {'ok': True, 'archived': False}
     with state.lock:
         try:
-            rid = save_report('live', state.opts.pose, state.opts.view, state.opts.level, state.best) if archive and state.best else None
+            rid = save_report('live', state.opts.pose, state.opts.view, state.opts.level, state.best,
+                              state.best_photo, state.best_skeleton_photo) if archive and state.best else None
             return {'ok': True, 'archived': bool(rid), 'report_id': rid, 'best': state.best}
         finally:
             state.close()
@@ -338,6 +357,8 @@ def _analyze_video_file(path: str, pose: str, view: str, level: str):
             fps = 30.0
         idx = good = processed = 0
         best = None
+        best_photo = None
+        best_skeleton_photo = None
         last_center = None
         stable_from = None
         stride = 2
@@ -368,12 +389,14 @@ def _analyze_video_file(path: str, pose: str, view: str, level: str):
             if analyzed is None:
                 continue
             good += 1
-            result = make_result(analyzed, display, idx, round(t, 2))
+            result = make_result(analyzed, display, idx, round(t, 2), f'{pose}_{view}', level)
             if best is None or result['score'] > best['score']:
                 best = result
+                best_photo = render_photo(img)
+                best_skeleton_photo = render_skeleton_photo(img, display, result['issue_regions'])
         if best is None:
             raise HTTPException(422, '未找到稳定2秒以上的有效姿态。请确认全身入镜、正侧位和动作选择正确。')
-        rid = save_report('video', pose, view, level, best)
+        rid = save_report('video', pose, view, level, best, best_photo, best_skeleton_photo)
         return {'ok': True, 'report_id': rid,
                 'pose': {'id': pose, 'name': POSES[pose], 'view': view, 'level': level},
                 'result': best,
@@ -417,7 +440,7 @@ async def analyze_video(
 def list_reports():
     with connect_db() as con:
         rows = con.execute('SELECT id,created_at,source,pose,view,level,score,grade FROM reports ORDER BY created_at DESC LIMIT 100').fetchall()
-    return {'reports': [dict(r) for r in rows]}
+    return {'reports': [dict(r) | {'has_photo': (photos_dir(DATA, r['id']) / 'original.jpg').is_file()} for r in rows]}
 
 
 @app.get('/api/reports/{report_id}')
@@ -435,7 +458,37 @@ def get_report(report_id: str):
 def delete_report(report_id: str):
     with connect_db() as con:
         cur = con.execute('DELETE FROM reports WHERE id=?', (report_id,))
+    if cur.rowcount:
+        delete_photos(DATA, report_id)
     return {'ok': cur.rowcount > 0}
+
+
+@app.get('/api/reports/{report_id}/photos/{kind}')
+def report_photo(report_id: str, kind: str):
+    if kind not in ('original', 'skeleton'):
+        raise HTTPException(404, '照片类型不存在')
+    with connect_db() as con:
+        report = con.execute('SELECT id FROM reports WHERE id=?', (report_id,)).fetchone()
+    if not report:
+        raise HTTPException(404, '报告不存在')
+    try:
+        path = photos_dir(DATA, report_id) / f'{kind}.jpg'
+    except ValueError:
+        raise HTTPException(404, '报告不存在')
+    if not path.is_file():
+        raise HTTPException(404, '该报告没有保存对应照片')
+    return FileResponse(path, media_type='image/jpeg', headers={'Cache-Control': 'private, no-store',
+                                                               'X-Content-Type-Options': 'nosniff'})
+
+
+@app.get('/api/anatomy/{orientation}/{layer}')
+def anatomy_image(orientation: str, layer: str):
+    if orientation not in ('front', 'back') or layer not in ('skeleton', 'muscle'):
+        raise HTTPException(404, '解剖视图不存在')
+    path = ROOT / 'assets' / f'{orientation}_{layer}.png'
+    if not path.is_file():
+        raise HTTPException(404, '原始解剖示意图文件不存在')
+    return FileResponse(path, media_type='image/png')
 
 
 @app.get('/')
