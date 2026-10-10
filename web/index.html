@@ -25,6 +25,8 @@
  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></symbol>
+ <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 18 6-6 4 4 3-3 4 5"/></symbol>
+ <symbol id="i-focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M8 2H4a2 2 0 0 0-2 2v4m14-6h4a2 2 0 0 1 2 2v4M2 16v4a2 2 0 0 0 2 2h4m8 0h4a2 2 0 0 0 2-2v-4"/></symbol>
 </svg>
 <div class="site">
 <header class="nav-bar">
@@ -56,6 +58,7 @@
    <div class="score-block"><div class="score-circle" id="live-ring"><strong id="live-score">—</strong><small>综合评分</small></div><div class="score-explain"><small>实时综合评分 / 100</small><h3 id="live-headline">等待有效动作</h3><p id="live-advice">开启评估后，系统将引导你调整位置、完成动作并保持稳定。</p></div></div>
    <div id="live-metrics" class="metric-grid"><div><span>S1 关节—姿态符合度</span><strong>—</strong><i><em></em></i></div><div><span>S2 拓扑稳定与代偿控制</span><strong>—</strong><i><em></em></i></div><div><span>S3 支撑—代偿视觉代理</span><strong>—</strong><i><em></em></i></div></div>
    <div class="risk-strip"><span><svg><use href="#i-shield"/></svg> 代偿风险</span><strong id="live-risk">待评价</strong></div>
+   <details class="anatomy-details"><summary>骨骼与肌肉视图 · 重点关注部位 <svg><use href="#i-chevron"/></svg></summary><div id="live-anatomy-host" class="anatomy-host"><p class="subtle-caption">完成有效评分后显示可视化位置提示。</p></div></details>
    <details class="tech-details"><summary>查看技术诊断依据 <svg><use href="#i-chevron"/></svg></summary><div id="live-tech">等待真实检测数据…</div></details>
   </div>
  </div>
@@ -72,6 +75,7 @@
    <div class="score-block"><div class="score-circle" id="video-ring"><strong id="video-score">—</strong><small>最佳帧评分</small></div><div class="score-explain"><small>有效保持窗口内的最佳评分</small><h3 id="video-headline">尚无分析结果</h3><p id="video-advice">选择视频和体式后，点击“开始视频分析”。不会返回虚构评分。</p></div></div>
    <div class="metric-grid" id="video-metrics"><div><span>S1 关节—姿态符合度</span><strong>—</strong><i><em></em></i></div><div><span>S2 拓扑稳定与代偿控制</span><strong>—</strong><i><em></em></i></div><div><span>S3 支撑—代偿视觉代理</span><strong>—</strong><i><em></em></i></div></div>
    <div class="data-inline"><div><span>最佳表现时刻</span><strong id="best-time">—</strong></div><div><span>有效评分帧数</span><strong id="valid-frames">—</strong></div><div><span>代偿风险</span><strong id="video-risk">—</strong></div></div>
+   <details class="anatomy-details"><summary>骨骼与肌肉视图 · 重点关注部位 <svg><use href="#i-chevron"/></svg></summary><div id="video-anatomy-host" class="anatomy-host"><p class="subtle-caption">完成有效评分后显示可视化位置提示。</p></div></details>
    <details class="tech-details"><summary>查看拓扑、DLS与分项指标 <svg><use href="#i-chevron"/></svg></summary><div id="video-tech">等待真实检测数据…</div></details>
    <button class="btn outline wide" id="show-video-report" disabled><svg><use href="#i-report"/></svg> 查看完整报告</button>
   </div>
@@ -80,8 +84,8 @@
 
 <section id="page-reports" class="page">
  <div class="page-intro"><div><span class="section-kicker">ASSESSMENT ARCHIVE</span><h2>评估报告与历史记录</h2><p>保存动作成绩、技术诊断与纠正建议，便于后续复核和比较练习表现。</p></div><button class="btn outline" id="refresh-reports"><svg><use href="#i-activity"/></svg>刷新记录</button></div>
- <div class="panel reports-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 评估记录</span><span class="subtle-caption">只保存分析结果，不保存原视频；记录存储于当前服务器</span></div><div id="reports-list" class="report-list"><div class="empty-message">尚无评估记录，先完成一次动作评估。</div></div></div>
- <div id="report-detail" class="panel detail-panel" hidden><div class="panel-title"><span><svg><use href="#i-report"/></svg> 完整评估报告</span><button class="btn subtle" id="print-report"><svg><use href="#i-download"/></svg>打印 / 保存PDF</button></div><div id="report-content"></div></div>
+ <div class="panel reports-panel"><div class="panel-title"><span><svg><use href="#i-report"/></svg> 评估记录</span><span class="subtle-caption">每份新报告保留最佳帧原图及骨架标注图；不保存完整视频。照片存储于当前服务器</span></div><div id="reports-list" class="report-list"><div class="empty-message">尚无评估记录，先完成一次动作评估。</div></div></div>
+ <div id="report-detail" class="panel detail-panel" hidden><div class="panel-title"><span><svg><use href="#i-report"/></svg> 图像证据与完整评估报告</span><button class="btn subtle" id="print-report"><svg><use href="#i-download"/></svg>打印 / 保存PDF</button></div><div id="report-content"></div></div>
 </section>
 </main>
 <footer><span>VECTORBODY 2.0</span><span>以视觉理解动作，以证据支持改进</span><span>教学辅助评估 · 不用于医学诊断</span></footer>
